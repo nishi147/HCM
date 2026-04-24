@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react';
+import API_URL from '../utils/api';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, X, Edit2, Trash2, Layout, Layers, Check, AlertCircle } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, Layout, Layers, Check, AlertCircle, BarChart2, Filter, Clock, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const AdminProjects = () => {
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     const [projects, setProjects] = useState([]);
+    const [timesheets, setTimesheets] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('projects'); // 'projects' or 'analytics'
+    const [detailsModal, setDetailsModal] = useState({ isOpen: false, phase: '', module: '', project: '', records: [] });
+    const [filterProject, setFilterProject] = useState('All');
+    const [expandedProjects, setExpandedProjects] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
     const [error, setError] = useState('');
@@ -29,7 +35,7 @@ const AdminProjects = () => {
         name: '',
         description: '',
         modules: [],
-        phases: ['alpha', 'beta', 'gold', 'scorm'],
+        phases: ['Alpha', 'Beta', 'Gold', 'SCORM'],
         status: 'Active'
     });
 
@@ -37,8 +43,23 @@ const AdminProjects = () => {
     const [newPhase, setNewPhase] = useState('');
 
     useEffect(() => {
-        fetchProjects();
+        fetchData();
     }, []);
+
+    const fetchData = async () => {
+        try {
+            const [projRes, tsRes] = await Promise.all([
+                axios.get(`${API_URL}/projects`, { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get(`${API_URL}/timesheets/all`, { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+            setProjects(projRes.data);
+            setTimesheets(tsRes.data);
+            setLoading(false);
+        } catch (err) {
+            console.error('Error fetching data:', err);
+            setLoading(false);
+        }
+    };
 
     const fetchProjects = async () => {
         try {
@@ -46,12 +67,50 @@ const AdminProjects = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setProjects(res.data);
-            setLoading(false);
         } catch (err) {
             console.error('Error fetching projects:', err);
-            setLoading(false);
         }
     };
+
+    const getAnalyticsData = () => {
+        const data = {};
+        timesheets.forEach(ts => {
+            if (filterProject !== 'All' && ts.project !== filterProject) return;
+
+            if (!data[ts.project]) {
+                data[ts.project] = { total: 0, phases: {}, modules: {} };
+            }
+
+            // Project level aggregation
+            data[ts.project].total += ts.duration;
+            if (!data[ts.project].phases[ts.phase]) data[ts.project].phases[ts.phase] = { total: 0 };
+            data[ts.project].phases[ts.phase].total += ts.duration;
+
+            // Module level aggregation
+            if (!data[ts.project].modules[ts.module]) {
+                data[ts.project].modules[ts.module] = { total: 0, phases: {} };
+            }
+
+            const modData = data[ts.project].modules[ts.module];
+            modData.total += ts.duration;
+
+            if (!modData.phases[ts.phase]) modData.phases[ts.phase] = { total: 0, records: [] };
+            modData.phases[ts.phase].total += ts.duration;
+            modData.phases[ts.phase].records.push(ts);
+        });
+        return data;
+    };
+
+    const toggleProjectExpand = (projName) => {
+        setExpandedProjects(prev => ({ ...prev, [projName]: !prev[projName] }));
+    };
+
+    const analyticsData = getAnalyticsData();
+    // Get unique phases for columns based on projects
+    const allPhases = ['Alpha', 'Beta', 'Gold', 'SCORM']; // default phases
+    projects.forEach(p => p.phases.forEach(ph => {
+        if (!allPhases.includes(ph)) allPhases.push(ph);
+    }));
 
     const handleOpenModal = (project = null) => {
         if (project) {
@@ -69,7 +128,7 @@ const AdminProjects = () => {
                 name: '',
                 description: '',
                 modules: [],
-                phases: ['alpha', 'beta', 'gold', 'scorm'],
+                phases: ['Alpha', 'Beta', 'Gold', 'SCORM'],
                 status: 'Active'
             });
         }
@@ -96,7 +155,7 @@ const AdminProjects = () => {
     };
 
     const removePhase = (index) => {
-        const permanentPhases = ['alpha', 'beta', 'gold', 'scorm'];
+        const permanentPhases = ['Alpha', 'Beta', 'Gold', 'SCORM'];
         const phaseToRemove = formData.phases[index];
         
         if (permanentPhases.includes(phaseToRemove)) {
@@ -158,18 +217,37 @@ const AdminProjects = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                     <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Project Management</h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>Define projects, modules and phases for timesheet tracking.</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>Define projects, modules and view analytics.</p>
                 </div>
-                <button onClick={() => handleOpenModal()} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Plus size={18} />
-                    <span style={{ fontWeight: '600' }}>Add Project</span>
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+                        <button 
+                            onClick={() => setActiveTab('projects')}
+                            style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: activeTab === 'projects' ? 'var(--primary-soft)' : 'transparent', color: activeTab === 'projects' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                            <Layout size={16} /> Projects
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('analytics')}
+                            style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', border: 'none', background: activeTab === 'analytics' ? 'var(--primary-soft)' : 'transparent', color: activeTab === 'analytics' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: '700', cursor: 'pointer' }}
+                        >
+                            <BarChart2 size={16} /> Analytics
+                        </button>
+                    </div>
+                    {activeTab === 'projects' && (
+                        <button onClick={() => handleOpenModal()} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Plus size={18} />
+                            <span style={{ fontWeight: '600' }}>Add Project</span>
+                        </button>
+                    )}
+                </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px' }}>
+            {activeTab === 'projects' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px' }}>
                 {projects.map(project => (
                     <motion.div
                         layout
@@ -231,7 +309,160 @@ const AdminProjects = () => {
                         </div>
                     </motion.div>
                 ))}
-            </div>
+                </div>
+            ) : (
+                <div className="card" style={{ padding: '24px', borderRadius: '20px', background: 'white', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 12px' }}>
+                            <Filter size={16} color="var(--text-muted)" />
+                            <select 
+                                value={filterProject} 
+                                onChange={(e) => setFilterProject(e.target.value)}
+                                style={{ border: 'none', background: 'transparent', padding: '10px 0', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}
+                            >
+                                <option value="All">All Projects</option>
+                                {projects.map(p => <option key={p._id} value={p.name}>{p.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px', fontSize: '13px' }}>
+                            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                                <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                                    <th style={{ padding: '8px 12px', color: '#1e293b', fontWeight: '800', background: '#f8fafc', borderRight: '1px solid var(--border)' }}>Project Name</th>
+                                    <th style={{ padding: '8px 12px', color: '#1e293b', fontWeight: '800', background: '#f8fafc', borderRight: '1px solid var(--border)' }}>Module Name</th>
+                                    <th style={{ padding: '8px 12px', color: '#1e293b', fontWeight: '800', background: '#f8fafc', borderRight: '1px solid var(--border)', textAlign: 'center', width: '100px' }}>Total Hrs.</th>
+                                    {allPhases.map(phase => (
+                                        <th key={phase} style={{ padding: '8px 12px', color: '#64748b', fontWeight: '700', background: '#f8fafc', textTransform: 'capitalize', textAlign: 'center', width: '80px' }}>{phase}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.keys(analyticsData).map((projName, pIndex) => {
+                                    const projData = analyticsData[projName];
+                                    const modules = Object.keys(projData.modules);
+                                    const isExpanded = expandedProjects[projName];
+                                    
+                                    return (
+                                        <React.Fragment key={projName}>
+                                            {/* Project Summary Row */}
+                                            <tr 
+                                                onClick={() => toggleProjectExpand(projName)}
+                                                style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc', cursor: 'pointer', transition: 'background 0.2s' }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = '#f8fafc'}
+                                            >
+                                                <td style={{ padding: '8px 12px', fontWeight: '800', color: '#0f172a', borderRight: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                                    {projName}
+                                                </td>
+                                                <td style={{ padding: '8px 12px', fontWeight: '600', color: '#64748b', borderRight: '1px solid var(--border)', fontStyle: 'italic' }}>
+                                                    {modules.length} Modules
+                                                </td>
+                                                <td style={{ padding: '8px 12px', fontWeight: '800', color: '#0f172a', textAlign: 'center', borderRight: '1px solid var(--border)', background: '#e2e8f0' }}>{projData.total} Hrs</td>
+                                                {allPhases.map(phase => {
+                                                    const hrs = projData.phases[phase] ? projData.phases[phase].total : 0;
+                                                    return (
+                                                        <td key={phase} style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '700', color: hrs > 0 ? '#1e293b' : '#cbd5e1' }}>
+                                                            {hrs > 0 ? `${hrs} Hrs` : '-'}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+
+                                            {/* Module Rows (Expandable) */}
+                                            {isExpanded && modules.map((modName) => {
+                                                const modData = projData.modules[modName];
+                                                return (
+                                                    <tr key={`${projName}-${modName}`} style={{ borderBottom: '1px solid var(--border)', background: 'white' }}>
+                                                        <td style={{ padding: '6px 12px', borderRight: '1px solid var(--border)' }}></td>
+                                                        <td style={{ padding: '6px 12px', fontWeight: '600', color: '#475569', borderRight: '1px solid var(--border)', paddingLeft: '24px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#94a3b8' }}></div>
+                                                                {modName}
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '6px 12px', fontWeight: '800', color: '#334155', textAlign: 'center', borderRight: '1px solid var(--border)', background: '#f1f5f9' }}>{modData.total} Hrs</td>
+                                                        {allPhases.map(phase => {
+                                                            const phaseData = modData.phases[phase];
+                                                            const hrs = phaseData ? phaseData.total : 0;
+                                                            return (
+                                                                <td key={phase} style={{ padding: '6px 12px', textAlign: 'center' }}>
+                                                                    {hrs > 0 ? (
+                                                                        <button 
+                                                                            onClick={() => setDetailsModal({ isOpen: true, project: projName, module: modName, phase: phase, records: phaseData.records })}
+                                                                            style={{ 
+                                                                                background: 'none', border: 'none', 
+                                                                                color: 'var(--primary)', fontWeight: '700', 
+                                                                                cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '4px' 
+                                                                            }}
+                                                                        >
+                                                                            {hrs} Hrs
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span style={{ color: '#cbd5e1' }}>-</span>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    );
+                                })}
+                                {Object.keys(analyticsData).length === 0 && (
+                                    <tr>
+                                        <td colSpan={allPhases.length + 3} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No timesheet data available.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Time Details Modal */}
+            <AnimatePresence>
+                {detailsModal.isOpen && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1200, backdropFilter: 'blur(4px)' }}>
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="card"
+                            style={{ width: '100%', maxWidth: '500px', padding: '32px', position: 'relative', maxHeight: '80vh', overflowY: 'auto', background: 'white' }}
+                        >
+                            <button onClick={() => setDetailsModal({ ...detailsModal, isOpen: false })} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                <X size={20} />
+                            </button>
+                            
+                            <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px', color: '#0f172a' }}>Time Log Details</h3>
+                            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px', fontWeight: '600' }}>
+                                {detailsModal.project} • {detailsModal.module} • <span style={{ textTransform: 'capitalize' }}>{detailsModal.phase}</span>
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {detailsModal.records.map((rec, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                        <div>
+                                            <p style={{ fontWeight: '700', color: '#1e293b', margin: 0, fontSize: '15px' }}>{rec.userId?.name || 'Unknown Employee'}</p>
+                                            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/> {new Date(rec.date).toLocaleDateString()}</p>
+                                        </div>
+                                        <div style={{ background: '#eff6ff', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                            <span style={{ fontWeight: '800', color: '#2563eb' }}>{rec.duration} Hrs</span>
+                                        </div>
+                                    </div>
+                                ))}
+                                {detailsModal.records.length === 0 && (
+                                    <p style={{ color: 'var(--text-muted)' }}>No records found.</p>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Modal */}
             <AnimatePresence>

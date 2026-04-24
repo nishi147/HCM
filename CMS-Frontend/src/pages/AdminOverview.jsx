@@ -1,16 +1,20 @@
+import API_URL from '../utils/api';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Briefcase, Users, UserPlus, Layers, Gift, Clock, Calendar } from 'lucide-react';
+import { Briefcase, Users, UserPlus, Layers, Gift, Clock, Calendar, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const AdminOverview = ({ setActiveTab }) => {
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
     const [employees, setEmployees] = useState([]);
     const [attendance, setAttendance] = useState([]);
     const [leaves, setLeaves] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
     useEffect(() => {
         const fetchData = async () => {
@@ -61,41 +65,56 @@ const AdminOverview = ({ setActiveTab }) => {
         return { checkedIn, checkedOut, onLeave, absent };
     };
 
-    const getMonthlyStats = () => {
-        const monthsData = [];
-        const now = new Date();
+    const getMonthWiseSummary = () => {
+        const summary = {};
         
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthName = d.toLocaleString('default', { month: 'short' });
-            const monthPrefix = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
-            
-            const monthAttendance = attendance.filter(a => a.date.startsWith(monthPrefix));
-            const inCount = monthAttendance.length;
-            const outCount = monthAttendance.filter(a => a.checkOut).length;
-            
-            // Calculate total leave days in this month
-            let leaveDays = 0;
-            leaves.forEach(leave => {
-                if (leave.status !== 'Approved') return;
-                
-                let current = new Date(leave.startDate);
-                const end = new Date(leave.endDate);
-                
-                while (current <= end) {
-                    const dateStr = current.toISOString().split('T')[0];
-                    if (dateStr.startsWith(monthPrefix)) {
-                        leaveDays++;
-                    }
-                    current.setDate(current.getDate() + 1);
-                }
-            });
+        employees.forEach(emp => {
+            summary[emp._id] = {
+                name: emp.name,
+                present: 0,
+                leave: 0
+            };
+        });
 
-            monthsData.push({ month: monthName, in: inCount, out: outCount, leave: leaveDays });
-        }
+        const monthlyAttendance = attendance.filter(a => a.date.startsWith(selectedMonth));
+        monthlyAttendance.forEach(att => {
+            if (att.userId?._id && summary[att.userId._id]) {
+                summary[att.userId._id].present += 1;
+            }
+        });
         
-        const max = Math.max(...monthsData.flatMap(m => [m.in, m.out, m.leave]), 1);
-        return { monthsData, max };
+        leaves.forEach(l => {
+            if (l.status !== 'Approved' || !l.userId?._id || !summary[l.userId._id]) return;
+            
+            let current = new Date(l.startDate);
+            const end = new Date(l.endDate);
+            
+            while (current <= end) {
+                const dateStr = current.toISOString().split('T')[0];
+                if (dateStr.startsWith(selectedMonth)) {
+                    summary[l.userId._id].leave += 1;
+                }
+                current.setDate(current.getDate() + 1);
+            }
+        });
+        
+        return Object.values(summary).sort((a, b) => a.name.localeCompare(b.name));
+    };
+
+    const exportMonthlyAttendance = () => {
+        const summary = getMonthWiseSummary();
+        const data = summary.map(emp => ({
+            Employee: emp.name,
+            'Present Days': emp.present,
+            'Leave Days': emp.leave
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, `Attendance_${selectedMonth}`);
+        const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const fileData = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        saveAs(fileData, `Attendance_Summary_${selectedMonth}.xlsx`);
     };
 
     const upcomingBirthdays = employees
@@ -112,7 +131,7 @@ const AdminOverview = ({ setActiveTab }) => {
         .slice(0, 3);
 
     const dailyStatus = getDailyStatus();
-    const { monthsData, max } = getMonthlyStats();
+    const monthlySummary = getMonthWiseSummary();
 
     const stats = [
         { label: 'Checked In', value: dailyStatus.checkedIn.length, icon: Clock, color: '#10b981' },
@@ -120,41 +139,6 @@ const AdminOverview = ({ setActiveTab }) => {
         { label: 'On Leave', value: dailyStatus.onLeave.length, icon: Calendar, color: '#3b82f6' },
         { label: 'Absent', value: dailyStatus.absent.length, icon: Users, color: '#f59e0b' },
     ];
-    const [hoveredData, setHoveredData] = useState(null);
-
-    const Tooltip = ({ data }) => (
-        <motion.div 
-            initial={{ opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            style={{ 
-                position: 'absolute', 
-                bottom: '100%', 
-                left: '50%', 
-                transform: 'translateX(-50%)', 
-                marginBottom: '12px',
-                background: 'rgba(15, 23, 42, 0.95)',
-                color: 'white',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: '700',
-                whiteSpace: 'nowrap',
-                zIndex: 100,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                pointerEvents: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-                alignItems: 'center'
-            }}
-        >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: data.color }}></div>
-                <span>{data.label}: {data.value}</span>
-            </div>
-            <div style={{ width: 0, height: 0, borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid rgba(15, 23, 42, 0.95)', position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)' }}></div>
-        </motion.div>
-    );
 
     if (loading) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading Analytics...</div>;
 
@@ -178,105 +162,41 @@ const AdminOverview = ({ setActiveTab }) => {
                 })}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', flexWrap: 'wrap' }} className="responsive-grid">
-                {/* Monthly Trends - Custom CSS Chart */}
-                <div className="card" style={{ padding: '32px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)' }}>Monthly Analytics</h3>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#10b981' }}></div>
-                                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>In</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#ef4444' }}></div>
-                                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Out</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#3b82f6' }}></div>
-                                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)' }}>Leave</span>
-                            </div>
-                        </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }} className="responsive-grid">
+                {/* Who is On Leave */}
+                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>On Leave Today</h3>
+                        <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', fontWeight: '700' }}>{dailyStatus.onLeave.length}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '240px', gap: '24px', paddingBottom: '20px' }}>
-                        {monthsData.map((m, i) => (
-                            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ position: 'relative', width: '100%', height: '200px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '4px' }}>
-                                    {/* In Bar */}
-                                    <motion.div 
-                                        initial={{ height: 0 }} 
-                                        animate={{ height: `${(m.in / max) * 100}%` }} 
-                                        whileHover={{ scaleX: 1.1, filter: 'brightness(1.1)' }}
-                                        onHoverStart={() => setHoveredData({ month: i, type: 'in', value: m.in, label: 'Checked In', color: '#10b981' })}
-                                        onHoverEnd={() => setHoveredData(null)}
-                                        style={{ width: '20%', background: '#10b981', borderRadius: '4px 4px 0 0', cursor: 'pointer', position: 'relative' }} 
-                                    >
-                                        {hoveredData?.month === i && hoveredData?.type === 'in' && <Tooltip data={hoveredData} />}
-                                    </motion.div>
-                                    {/* Out Bar */}
-                                    <motion.div 
-                                        initial={{ height: 0 }} 
-                                        animate={{ height: `${(m.out / max) * 100}%` }} 
-                                        whileHover={{ scaleX: 1.1, filter: 'brightness(1.1)' }}
-                                        onHoverStart={() => setHoveredData({ month: i, type: 'out', value: m.out, label: 'Checked Out', color: '#ef4444' })}
-                                        onHoverEnd={() => setHoveredData(null)}
-                                        style={{ width: '20%', background: '#ef4444', borderRadius: '4px 4px 0 0', cursor: 'pointer', position: 'relative' }} 
-                                    >
-                                        {hoveredData?.month === i && hoveredData?.type === 'out' && <Tooltip data={hoveredData} />}
-                                    </motion.div>
-                                    {/* Leave Bar */}
-                                    <motion.div 
-                                        initial={{ height: 0 }} 
-                                        animate={{ height: `${(m.leave / max) * 100}%` }} 
-                                        whileHover={{ scaleX: 1.1, filter: 'brightness(1.1)' }}
-                                        onHoverStart={() => setHoveredData({ month: i, type: 'leave', value: m.leave, label: 'On Leave', color: '#3b82f6' })}
-                                        onHoverEnd={() => setHoveredData(null)}
-                                        style={{ width: '20%', background: '#3b82f6', borderRadius: '4px 4px 0 0', cursor: 'pointer', position: 'relative' }} 
-                                    >
-                                        {hoveredData?.month === i && hoveredData?.type === 'leave' && <Tooltip data={hoveredData} />}
-                                    </motion.div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {dailyStatus.onLeave.length > 0 ? dailyStatus.onLeave.slice(0, 4).map((emp, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>{emp.name[0]}</div>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>{emp.name}</p>
+                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{emp.type || 'Casual Leave'}</p>
                                 </div>
-                                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>{m.month}</span>
                             </div>
-                        ))}
+                        )) : <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>No one is on leave today!</p>}
                     </div>
                 </div>
 
-                {/* Who is On Leave / Absent */}
-                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>On Leave Today</h3>
-                            <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', fontWeight: '700' }}>{dailyStatus.onLeave.length}</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {dailyStatus.onLeave.length > 0 ? dailyStatus.onLeave.slice(0, 4).map((emp, i) => (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>{emp.name[0]}</div>
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>{emp.name}</p>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{emp.type || 'Casual Leave'}</p>
-                                    </div>
-                                </div>
-                            )) : <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>No ones on leave today</p>}
-                        </div>
+                {/* Birthdays */}
+                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Upcoming Birthdays</h3>
                     </div>
-
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Birthdays & Anniversaries</h3>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                            {upcomingBirthdays.map((emp, i) => (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <div style={{ padding: '8px', borderRadius: '8px', background: '#fff1f2', color: '#e11d48' }}><Gift size={16} /></div>
-                                    <div style={{ flex: 1 }}>
-                                        <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>{emp.name}</p>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{emp.diffDays === 0 ? 'Birthday Today!' : `Birthday in ${emp.diffDays} days`}</p>
-                                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {upcomingBirthdays.length > 0 ? upcomingBirthdays.map((emp, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ padding: '8px', borderRadius: '8px', background: '#fff1f2', color: '#e11d48' }}><Gift size={16} /></div>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>{emp.name}</p>
+                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{emp.diffDays === 0 ? 'Birthday Today!' : `Birthday in ${emp.diffDays} days`}</p>
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )) : <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>No upcoming birthdays</p>}
                     </div>
                 </div>
             </div>
@@ -288,10 +208,10 @@ const AdminOverview = ({ setActiveTab }) => {
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
                             <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
-                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b' }}>EMPLOYEE</th>
-                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b' }}>STATUS</th>
-                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b' }}>CHECK IN</th>
-                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b' }}>CHECK OUT</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>EMPLOYEE</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>STATUS</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>CHECK IN</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>CHECK OUT</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -323,6 +243,57 @@ const AdminOverview = ({ setActiveTab }) => {
                                     </tr>
                                 );
                             })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Month-Wise Attendance Summary */}
+            <div className="card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Month-Wise Attendance Summary</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-subtle)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                            <Calendar size={16} color="var(--text-muted)" style={{ marginRight: '8px' }} />
+                            <input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '14px', color: 'var(--text-main)', fontWeight: '600' }}
+                            />
+                        </div>
+                        <button onClick={exportMonthlyAttendance} className="btn-primary" style={{ padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                            <Download size={16} />
+                            Export
+                        </button>
+                    </div>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid var(--border)' }}>
+                                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>EMPLOYEE</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>PRESENT DAYS</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>LEAVE DAYS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {monthlySummary.map((emp, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <td style={{ padding: '16px', fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>{emp.name}</td>
+                                    <td style={{ padding: '16px', fontSize: '15px', fontWeight: '800', color: '#10b981', textAlign: 'center', background: '#f0fdf4' }}>
+                                        {emp.present}
+                                    </td>
+                                    <td style={{ padding: '16px', fontSize: '15px', fontWeight: '800', color: '#3b82f6', textAlign: 'center', background: '#eff6ff' }}>
+                                        {emp.leave}
+                                    </td>
+                                </tr>
+                            ))}
+                            {monthlySummary.length === 0 && (
+                                <tr>
+                                    <td colSpan="3" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No data available for this month.</td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

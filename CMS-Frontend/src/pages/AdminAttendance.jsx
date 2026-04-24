@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import { useState, useEffect } from 'react';
 import { Search, Clock, Calendar, AlertCircle } from 'lucide-react';
 import axios from 'axios';
@@ -8,7 +9,7 @@ const AdminAttendance = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     useEffect(() => {
         fetchAttendance();

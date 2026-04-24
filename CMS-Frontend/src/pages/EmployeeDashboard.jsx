@@ -1,7 +1,9 @@
+import API_URL from '../utils/api';
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
+import Settings from './Settings';
 import { Clock, CheckCircle, Calendar, Briefcase, CreditCard, Check, AlertCircle, ChevronRight, LayoutGrid, FileText, Gift, Plus, ChevronLeft, Menu, DollarSign, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -434,9 +436,9 @@ const DashboardHome = ({ data, handleCheckIn, handleCheckOut, error, viewDate, h
     );
 };
 
-const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) => {
+const TimesheetView = ({ timesheets, fetchDashboardData }) => {
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
     const [showForm, setShowForm] = useState(false);
     const [projects, setProjects] = useState([]);
     const [selectedProjectData, setSelectedProjectData] = useState(null);
@@ -449,6 +451,11 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
         date: new Date().toISOString().split('T')[0]
     });
     const [status, setStatus] = useState({ type: '', msg: '' });
+
+    // Filters
+    const [filterProject, setFilterProject] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterMonth, setFilterMonth] = useState('');
 
     useEffect(() => {
         const fetchProjects = async () => {
@@ -500,10 +507,20 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
         }
     };
 
+    // Filter Logic
+    const filteredTimesheets = timesheets.filter(ts => {
+        if (filterProject && ts.project !== filterProject) return false;
+        if (filterStatus && ts.status !== filterStatus) return false;
+        if (filterMonth && !ts.date.startsWith(filterMonth)) return false;
+        return true;
+    });
+
+    const uniqueProjects = [...new Set(timesheets.map(ts => ts.project))];
+
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>My Timesheet</h2>
+                <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>My Timesheets</h2>
                 <button
                     onClick={() => setShowForm(!showForm)}
                     className="btn-primary"
@@ -590,9 +607,39 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
                 </div>
             )}
 
-            <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'white' }}>
+            {/* Filters Section */}
+            <div className="card" style={{ padding: '20px', background: 'white', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>Filter by Project</label>
+                    <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                        <option value="">All Projects</option>
+                        {uniqueProjects.map((p, i) => <option key={i} value={p}>{p}</option>)}
+                    </select>
+                </div>
+                <div style={{ flex: '1 1 200px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>Filter by Status</label>
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                        <option value="">All Statuses</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                </div>
+                <div style={{ flex: '1 1 200px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>Filter by Month</label>
+                    <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }} />
+                </div>
+                <button 
+                    onClick={() => { setFilterProject(''); setFilterStatus(''); setFilterMonth(''); }}
+                    style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: '600', alignSelf: 'flex-end', height: '40px' }}
+                >
+                    Clear Filters
+                </button>
+            </div>
+
+            <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'white', maxHeight: '60vh', overflowY: 'auto' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {timesheets.map((ts, i) => (
+                    {filteredTimesheets.map((ts, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--border)' }}>
                             <div style={{ flex: 1 }}>
                                 <p style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>{ts.project}</p>
@@ -615,19 +662,61 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
                             </span>
                         </div>
                     ))}
+                    {filteredTimesheets.length === 0 && (
+                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No timesheets found matching your filters.</div>
+                    )}
                 </div>
             </div>
+        </motion.div>
+    );
+};
 
-            {/* Attendance Logs Section */}
+const AttendanceLogsView = ({ attendanceHistory }) => {
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterMonth, setFilterMonth] = useState('');
+
+    const filteredLogs = attendanceHistory.filter(record => {
+        if (filterStatus && record.status !== filterStatus) return false;
+        if (filterMonth && !record.date.startsWith(filterMonth)) return false;
+        return true;
+    });
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Attendance Logs</h2>
+            
+            {/* Filters Section */}
+            <div className="card" style={{ padding: '20px', background: 'white', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>Filter by Status</label>
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                        <option value="">All Statuses</option>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                        <option value="Leave">Leave</option>
+                    </select>
+                </div>
+                <div style={{ flex: '1 1 200px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>Filter by Month</label>
+                    <input type="month" value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }} />
+                </div>
+                <button 
+                    onClick={() => { setFilterStatus(''); setFilterMonth(''); }}
+                    style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: '600', alignSelf: 'flex-end', height: '40px' }}
+                >
+                    Clear Filters
+                </button>
+            </div>
+
             <div className="card" style={{ background: 'white', borderRadius: '24px', overflow: 'hidden' }}>
                 <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Clock size={20} color="var(--primary)" />
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0 }}>Attendance Logs</h3>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0 }}>Log History</h3>
                 </div>
-                <div style={{ overflowX: 'auto' }}>
+                <div style={{ overflowX: 'auto', maxHeight: '60vh', overflowY: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                            <tr style={{ background: '#f8fafc' }}>
+                        <thead style={{ position: 'sticky', top: 0, background: '#f8fafc', zIndex: 1 }}>
+                            <tr>
                                 <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Date</th>
                                 <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Check In</th>
                                 <th style={{ padding: '16px 32px', textAlign: 'left', fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Check Out</th>
@@ -635,7 +724,7 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
                             </tr>
                         </thead>
                         <tbody>
-                            {attendanceHistory.map((record, i) => (
+                            {filteredLogs.map((record, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                                     <td style={{ padding: '20px 32px', fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
                                         {new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -661,9 +750,9 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
                                     </td>
                                 </tr>
                             ))}
-                            {attendanceHistory.length === 0 && (
+                            {filteredLogs.length === 0 && (
                                 <tr>
-                                    <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No attendance logs found.</td>
+                                    <td colSpan="4" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No attendance logs found matching filters.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -676,7 +765,7 @@ const TimesheetView = ({ timesheets, attendanceHistory, fetchDashboardData }) =>
 
 const LeaveView = ({ leaves, fetchDashboardData }) => {
     const { token, user } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     // Summary calculations with dynamic accrual based on DOJ (2 days per month)
     const getAccruedLeave = () => {
@@ -968,6 +1057,194 @@ const LeaveView = ({ leaves, fetchDashboardData }) => {
 };
 
 
+const PaySlipModal = ({ payroll, user, onClose }) => {
+    const handlePrint = () => {
+        const printContent = document.getElementById('printable-payslip').innerHTML;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>PaySlip_${payroll.month}_${user.name}</title>
+                    <style>
+                        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+                        body { font-family: 'Outfit', sans-serif; padding: 40px; color: #1e293b; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
+                        .logo-section h1 { margin: 0; color: #2563eb; }
+                        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+                        .detail-item { margin-bottom: 12px; }
+                        .detail-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+                        .detail-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+                        th { text-align: left; background: #f8fafc; padding: 12px; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+                        td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+                        .net-pay { background: #2563eb; color: white; padding: 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+                        .net-pay h2 { margin: 0; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    ${printContent}
+                    <script>window.print(); setTimeout(() => window.close(), 500);</script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    return (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
+                    <h3 style={{ margin: 0 }}>Payslip for {payroll.month}</h3>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button onClick={handlePrint} className="btn-primary" style={{ padding: '8px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Printer size={16} /> Print / Save PDF
+                        </button>
+                        <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Close</button>
+                    </div>
+                </div>
+
+                <div id="printable-payslip" style={{ padding: '40px' }}>
+                    <div className="header" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '20px', marginBottom: '32px' }}>
+                        <div className="logo-section">
+                            <h1 style={{ margin: 0, color: 'var(--primary)', fontSize: '24px', fontWeight: '800' }}>HCM CLOUD</h1>
+                            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Payslip Statement</p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '700' }}>MONTH & YEAR</p>
+                            <p style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>{payroll.month}</p>
+                        </div>
+                    </div>
+
+                    <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', marginBottom: '40px' }}>
+                        <div>
+                            <div className="detail-item">
+                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Employee Name</div>
+                                <div className="detail-value" style={{ fontSize: '16px', fontWeight: '700' }}>{user.name}</div>
+                            </div>
+                            <div className="detail-item" style={{ marginTop: '16px' }}>
+                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Email Address</div>
+                                <div className="detail-value" style={{ fontSize: '14px', color: '#64748b' }}>{user.email}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div className="detail-item">
+                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Payment Status</div>
+                                <div className="detail-value" style={{ fontSize: '14px', fontWeight: '800', color: payroll.status === 'Paid' ? '#16a34a' : '#f59e0b' }}>{payroll.status.toUpperCase()}</div>
+                            </div>
+                            <div className="detail-item" style={{ marginTop: '16px' }}>
+                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Payment Date</div>
+                                <div className="detail-value" style={{ fontSize: '14px', color: '#64748b' }}>{payroll.paymentDate ? new Date(payroll.paymentDate).toLocaleDateString() : 'N/A'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '32px' }}>
+                        <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                <th style={{ padding: '12px', textAlign: 'left', fontSize: '11px', fontWeight: '800' }}>DESCRIPTION</th>
+                                <th style={{ padding: '12px', textAlign: 'right', fontSize: '11px', fontWeight: '800' }}>AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Standard Base Salary</td>
+                                <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px' }}>{formatCurrency(payroll.base)}</td>
+                            </tr>
+                            {payroll.bonus > 0 && (
+                                <tr>
+                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Incentives & Bonuses (Extra {payroll.extraDays} days)</td>
+                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#16a34a' }}>+ {formatCurrency(payroll.bonus)}</td>
+                                </tr>
+                            )}
+                            {payroll.tax > 0 && (
+                                <tr>
+                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Income Tax Deductions</td>
+                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#dc2626' }}>- {formatCurrency(payroll.tax)}</td>
+                                </tr>
+                            )}
+                            {payroll.deductions > 0 && (
+                                <tr>
+                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Other Deductions / Unpaid Leave</td>
+                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#dc2626' }}>- {formatCurrency(payroll.deductions)}</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+
+                    <div style={{ background: 'var(--primary)', color: 'white', padding: '32px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', opacity: 0.8, textTransform: 'uppercase' }}>Net Payable Amount</p>
+                            <h2 style={{ margin: '8px 0 0 0', fontSize: '32px', fontWeight: '800' }}>{formatCurrency(payroll.netPay)}</h2>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                            <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>Total Earnings: {formatCurrency(payroll.base + payroll.bonus)}</p>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.8 }}>Total Deductions: {formatCurrency(payroll.tax + payroll.deductions)}</p>
+                        </div>
+                    </div>
+                    
+                    <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+                        <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>This is a computer generated document and does not require a signature.</p>
+                    </div>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
+const PayrollView = ({ payrolls, user }) => {
+    const [selectedPayroll, setSelectedPayroll] = useState(null);
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>My Payroll</h2>
+            </div>
+
+            <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'white' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {payrolls.length > 0 ? payrolls.map((payroll, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--border)', flexWrap: 'wrap', gap: '20px' }}>
+                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                                <DollarSign size={24} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Payslip for {payroll.month}</p>
+                                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                    Status: <span style={{ fontWeight: '700', color: payroll.status === 'Paid' ? '#16a34a' : '#f59e0b' }}>{payroll.status}</span>
+                                </p>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <p style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{formatCurrency(payroll.netPay)}</p>
+                                <button 
+                                    onClick={() => setSelectedPayroll(payroll)}
+                                    className="btn-primary" 
+                                    style={{ padding: '8px 16px', borderRadius: '10px', fontSize: '12px', marginTop: '8px', background: 'white', color: 'var(--primary)', border: '1px solid var(--primary)', fontWeight: '700' }}
+                                >
+                                    View & Download
+                                </button>
+                            </div>
+                        </div>
+                    )) : (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                            <FileText size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                            <p>No payroll records found for you yet.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {selectedPayroll && (
+                <PaySlipModal 
+                    payroll={selectedPayroll} 
+                    user={user} 
+                    onClose={() => setSelectedPayroll(null)} 
+                />
+            )}
+        </motion.div>
+    );
+};
+
 const EmployeeDashboard = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -985,7 +1262,7 @@ const EmployeeDashboard = () => {
     const [attendanceHistory, setAttendanceHistory] = useState([]);
 
     const { user, token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     const fetchDashboardData = useCallback(async () => {
         try {
@@ -999,10 +1276,10 @@ const EmployeeDashboard = () => {
             // Fetch all data in parallel; use allSettled so one failure doesn't block the rest
             const [attRes, tsRes, lvRes, hlRes, histRes, pyRes] = await Promise.allSettled([
                 axios.get(`${API_URL}/attendance/status`, { headers }),
-                axios.get(`${API_URL}/timesheets/my`, { params, headers }),
+                axios.get(`${API_URL}/timesheets/my`, { headers }),
                 axios.get(`${API_URL}/leaves/my`, { headers }),
                 axios.get(`${API_URL}/holidays`, { headers }),
-                axios.get(`${API_URL}/attendance/history`, { params, headers }),
+                axios.get(`${API_URL}/attendance/history`, { headers }),
                 axios.get(`${API_URL}/payroll/my`, { headers })
             ]);
 
@@ -1090,7 +1367,9 @@ const EmployeeDashboard = () => {
                     />
                 );
             case 'attendance':
-                return <TimesheetView timesheets={timesheets} attendanceHistory={attendanceHistory} fetchDashboardData={fetchDashboardData} />;
+                return <TimesheetView timesheets={timesheets} fetchDashboardData={fetchDashboardData} />;
+            case 'attendance_logs':
+                return <AttendanceLogsView attendanceHistory={attendanceHistory} />;
             case 'leave':
                 return <LeaveView leaves={leaves} fetchDashboardData={fetchDashboardData} />;
             case 'payroll':
@@ -1133,196 +1412,11 @@ const EmployeeDashboard = () => {
                         </div>
                     </motion.div>
                 );
+            case 'settings':
+                return <Settings />;
         }
     };
 
-    const PayrollView = ({ payrolls, user }) => {
-        const [selectedPayroll, setSelectedPayroll] = useState(null);
-
-        return (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>My Payroll</h2>
-                </div>
-
-                <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'white' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {payrolls.length > 0 ? payrolls.map((payroll, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid var(--border)', flexWrap: 'wrap', gap: '20px' }}>
-                                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                                    <DollarSign size={24} />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Payslip for {payroll.month}</p>
-                                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                        Status: <span style={{ fontWeight: '700', color: payroll.status === 'Paid' ? '#16a34a' : '#f59e0b' }}>{payroll.status}</span>
-                                    </p>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <p style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)', margin: 0 }}>{formatCurrency(payroll.netPay)}</p>
-                                    <button 
-                                        onClick={() => setSelectedPayroll(payroll)}
-                                        className="btn-primary" 
-                                        style={{ padding: '8px 16px', borderRadius: '10px', fontSize: '12px', marginTop: '8px', background: 'white', color: 'var(--primary)', border: '1px solid var(--primary)', fontWeight: '700' }}
-                                    >
-                                        View & Download
-                                    </button>
-                                </div>
-                            </div>
-                        )) : (
-                            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                                <FileText size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                                <p>No payroll records found for you yet.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {selectedPayroll && (
-                    <PaySlipModal 
-                        payroll={selectedPayroll} 
-                        user={user} 
-                        onClose={() => setSelectedPayroll(null)} 
-                    />
-                )}
-            </motion.div>
-        );
-    };
-
-    const PaySlipModal = ({ payroll, user, onClose }) => {
-        const handlePrint = () => {
-            const printContent = document.getElementById('printable-payslip').innerHTML;
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <html>
-                    <head>
-                        <title>PaySlip_${payroll.month}_${user.name}</title>
-                        <style>
-                            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-                            body { font-family: 'Outfit', sans-serif; padding: 40px; color: #1e293b; }
-                            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
-                            .logo-section h1 { margin: 0; color: #2563eb; }
-                            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-                            .detail-item { margin-bottom: 12px; }
-                            .detail-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-                            .detail-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
-                            table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                            th { text-align: left; background: #f8fafc; padding: 12px; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-                            td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
-                            .net-pay { background: #2563eb; color: white; padding: 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
-                            .net-pay h2 { margin: 0; }
-                            @media print { .no-print { display: none; } }
-                        </style>
-                    </head>
-                    <body>
-                        ${printContent}
-                        <script>window.print(); setTimeout(() => window.close(), 500);</script>
-                    </body>
-                </html>
-            `);
-            printWindow.document.close();
-        };
-
-        return (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
-                    <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
-                        <h3 style={{ margin: 0 }}>Payslip for {payroll.month}</h3>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button onClick={handlePrint} className="btn-primary" style={{ padding: '8px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Printer size={16} /> Print / Save PDF
-                            </button>
-                            <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Close</button>
-                        </div>
-                    </div>
-
-                    <div id="printable-payslip" style={{ padding: '40px' }}>
-                        <div className="header" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '20px', marginBottom: '32px' }}>
-                            <div className="logo-section">
-                                <h1 style={{ margin: 0, color: 'var(--primary)', fontSize: '24px', fontWeight: '800' }}>HCM CLOUD</h1>
-                                <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Payslip Statement</p>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '700' }}>MONTH & YEAR</p>
-                                <p style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>{payroll.month}</p>
-                            </div>
-                        </div>
-
-                        <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', marginBottom: '40px' }}>
-                            <div>
-                                <div className="detail-item">
-                                    <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Employee Name</div>
-                                    <div className="detail-value" style={{ fontSize: '16px', fontWeight: '700' }}>{user.name}</div>
-                                </div>
-                                <div className="detail-item" style={{ marginTop: '16px' }}>
-                                    <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Email Address</div>
-                                    <div className="detail-value" style={{ fontSize: '14px', color: '#64748b' }}>{user.email}</div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="detail-item">
-                                    <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Payment Status</div>
-                                    <div className="detail-value" style={{ fontSize: '14px', fontWeight: '800', color: payroll.status === 'Paid' ? '#16a34a' : '#f59e0b' }}>{payroll.status.toUpperCase()}</div>
-                                </div>
-                                <div className="detail-item" style={{ marginTop: '16px' }}>
-                                    <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Payment Date</div>
-                                    <div className="detail-value" style={{ fontSize: '14px', color: '#64748b' }}>{payroll.paymentDate ? new Date(payroll.paymentDate).toLocaleDateString() : 'N/A'}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '32px' }}>
-                            <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '11px', fontWeight: '800' }}>DESCRIPTION</th>
-                                    <th style={{ padding: '12px', textAlign: 'right', fontSize: '11px', fontWeight: '800' }}>AMOUNT</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Standard Base Salary</td>
-                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px' }}>{formatCurrency(payroll.base)}</td>
-                                </tr>
-                                {payroll.bonus > 0 && (
-                                    <tr>
-                                        <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Incentives & Bonuses (Extra {payroll.extraDays} days)</td>
-                                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#16a34a' }}>+ {formatCurrency(payroll.bonus)}</td>
-                                    </tr>
-                                )}
-                                {payroll.tax > 0 && (
-                                    <tr>
-                                        <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Income Tax Deductions</td>
-                                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#dc2626' }}>- {formatCurrency(payroll.tax)}</td>
-                                    </tr>
-                                )}
-                                {payroll.deductions > 0 && (
-                                    <tr>
-                                        <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Other Deductions / Unpaid Leave</td>
-                                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#dc2626' }}>- {formatCurrency(payroll.deductions)}</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-
-                        <div style={{ background: 'var(--primary)', color: 'white', padding: '32px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', opacity: 0.8, textTransform: 'uppercase' }}>Net Payable Amount</p>
-                                <h2 style={{ margin: '8px 0 0 0', fontSize: '32px', fontWeight: '800' }}>{formatCurrency(payroll.netPay)}</h2>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>Total Earnings: {formatCurrency(payroll.base + payroll.bonus)}</p>
-                                <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.8 }}>Total Deductions: {formatCurrency(payroll.tax + payroll.deductions)}</p>
-                            </div>
-                        </div>
-                        
-                        <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
-                            <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>This is a computer generated document and does not require a signature.</p>
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
-        );
-    };
 
     if (loading) return (
         <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-subtle)' }}>

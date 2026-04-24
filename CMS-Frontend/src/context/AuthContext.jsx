@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -20,8 +21,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-            const response = await axios.post(`${apiUrl}/auth/login`, { email, password });
+            const response = await axios.post(`${API_URL}/auth/login`, { email, password });
             const { token: newToken, user: newUser } = response.data;
             localStorage.setItem('token', newToken);
             localStorage.setItem('user', JSON.stringify(newUser));
@@ -40,8 +40,17 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const changePassword = async (email, currentPassword, newPassword) => {
+        try {
+            const response = await axios.post(`${API_URL}/auth/change-password`, { email, currentPassword, newPassword });
+            return { success: true, message: response.data.message };
+        } catch (error) {
+            return { success: false, message: error.response?.data?.message || 'Password update failed' };
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, changePassword, loading }}>
             {children}
         </AuthContext.Provider>
     );

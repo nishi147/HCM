@@ -9,6 +9,7 @@ import AdminLeave from './AdminLeave';
 import AdminHoliday from './AdminHoliday';
 import AdminPayroll from './AdminPayroll';
 import AdminProjects from './AdminProjects';
+import Settings from './Settings';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminDashboard = () => {
@@ -24,6 +25,7 @@ const AdminDashboard = () => {
             case 'holidays': return <AdminHoliday />;
             case 'payroll': return <AdminPayroll />;
             case 'projects': return <AdminProjects />;
+            case 'settings': return <Settings />;
             default: return (
                 <div className="card" style={{ padding: '60px', textAlign: 'center', background: 'var(--bg-main)' }}>
                     <h2 style={{ color: 'var(--text-main)', fontSize: '20px', fontWeight: '700' }}>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Module</h2>

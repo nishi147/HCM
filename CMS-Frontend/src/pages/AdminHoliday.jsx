@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Calendar, Tag, X, AlertCircle } from 'lucide-react';
 import axios from 'axios';
@@ -22,7 +23,7 @@ const AdminHoliday = () => {
     });
 
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     useEffect(() => {
         fetchHolidays();

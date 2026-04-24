@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import { useState, useEffect } from 'react';
 import { Search, Plus, Check, X, Filter, Sliders, Calendar, User, FileText, Clock, AlertCircle, Briefcase } from 'lucide-react';
 import axios from 'axios';
@@ -8,9 +9,11 @@ const AdminLeave = () => {
     const [leaves, setLeaves] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const [typeFilter, setTypeFilter] = useState('All');
 
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     useEffect(() => {
         fetchLeaves();
@@ -60,77 +63,60 @@ const AdminLeave = () => {
         }
     };
 
-    const calculateStats = () => {
-        const pending = leaves.filter(l => l.status === 'Pending');
-        const compOffPending = pending.filter(l => l.type === 'Comp Off');
-        const approvedThisMonth = leaves.filter(l => 
-            l.status === 'Approved' && 
-            new Date(l.startDate).getMonth() === new Date().getMonth()
-        );
-
-        const pendingByEmp = {};
-        pending.forEach(l => {
-            const name = l.userId?.name || 'Unknown';
-            pendingByEmp[name] = (pendingByEmp[name] || 0) + 1;
-        });
-
-        return { 
-            totalPending: pending.length, 
-            compOffPending: compOffPending.length, 
-            approvedThisMonth: approvedThisMonth.length,
-            pendingByEmp 
-        };
-    };
-
-    const stats = calculateStats();
-    const filteredLeaves = leaves.filter(leave =>
-        leave.userId?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        leave.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        leave.reason.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredLeaves = leaves.filter(leave => {
+        const matchesSearch = leave.userId?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              leave.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              leave.reason.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'All' || leave.status === statusFilter;
+        const matchesType = typeFilter === 'All' || leave.type === typeFilter;
+        return matchesSearch && matchesStatus && matchesType;
+    });
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', flex: 1, minHeight: 0 }}>
-            {/* Page Header */}
+            {/* Page Header and Filters */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Leave Management</h1>
-                <div className="card" style={{ display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', width: '360px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                    <Search size={18} color="var(--text-muted)" />
-                    <input
-                        type="text"
-                        placeholder="Search leave requests..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-main)', width: '100%', outline: 'none', fontSize: '14px' }}
-                    />
-                </div>
-            </div>
+                
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 12px' }}>
+                        <Filter size={16} color="var(--text-muted)" />
+                        <select 
+                            value={typeFilter} 
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', padding: '10px 0', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                            <option value="All">All Types</option>
+                            <option value="Comp Off">Comp Off</option>
+                            <option value="Paid Leave">Paid Leave</option>
+                            <option value="Unpaid Leave">Unpaid Leave</option>
+                            <option value="Sick Leave">Sick Leave</option>
+                        </select>
+                    </div>
 
-            {/* Summary Dashboard */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                <div className="card" style={{ padding: '24px', display: 'flex', gap: '20px', alignItems: 'center', borderLeft: '4px solid #f59e0b' }}>
-                    <div style={{ padding: '12px', borderRadius: '12px', background: '#fffbeb', color: '#f59e0b' }}><Clock size={24} /></div>
-                    <div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '2px' }}>Total Pending</p>
-                        <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)' }}>{stats.totalPending}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 12px' }}>
+                        <Sliders size={16} color="var(--text-muted)" />
+                        <select 
+                            value={statusFilter} 
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', padding: '10px 0', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontSize: '14px' }}
+                        >
+                            <option value="All">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Rejected">Rejected</option>
+                        </select>
                     </div>
-                </div>
-                <div className="card" style={{ padding: '24px', display: 'flex', gap: '20px', alignItems: 'center', borderLeft: '4px solid #3b82f6' }}>
-                    <div style={{ padding: '12px', borderRadius: '12px', background: '#eff6ff', color: '#3b82f6' }}><Briefcase size={24} /></div>
-                    <div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '2px' }}>Pending Comp Offs</p>
-                        <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)' }}>{stats.compOffPending}</h3>
-                    </div>
-                </div>
-                <div className="card" style={{ padding: '24px', display: 'flex', gap: '16px', flexDirection: 'column' }}>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', marginBottom: '0' }}>Pending By Employee</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {Object.entries(stats.pendingByEmp).length > 0 ? Object.entries(stats.pendingByEmp).map(([name, count]) => (
-                            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '4px 12px', borderRadius: '20px' }}>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>{name}</span>
-                                <span style={{ fontSize: '11px', fontWeight: '800', background: '#64748b', color: 'white', padding: '1px 6px', borderRadius: '10px' }}>{count}</span>
-                            </div>
-                        )) : <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No pending requests.</p>}
+
+                    <div className="card" style={{ display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', width: '280px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                        <Search size={18} color="var(--text-muted)" />
+                        <input
+                            type="text"
+                            placeholder="Search leave requests..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-main)', width: '100%', outline: 'none', fontSize: '14px' }}
+                        />
                     </div>
                 </div>
             </div>

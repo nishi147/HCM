@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import { useState, useEffect } from 'react';
 import { Plus, DollarSign, Calendar, User, FileText, Check, X, Search, CreditCard, TrendingUp, AlertCircle, Trash2, Clock } from 'lucide-react';
 import axios from 'axios';
@@ -26,7 +27,7 @@ const AdminPayroll = () => {
     });
 
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     useEffect(() => {
         fetchData();

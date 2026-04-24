@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import { useState, useEffect } from 'react';
 import { Search, Plus, Edit, Trash2, X, AlertCircle, User as UserIcon, Briefcase, Calendar, Tag, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
@@ -36,7 +37,7 @@ const EmployeeList = () => {
     const [error, setError] = useState('');
 
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
 
     useEffect(() => {

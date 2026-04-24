@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useState, useEffect } from 'react';
@@ -27,7 +28,7 @@ const AdminTimesheet = () => {
     const [error, setError] = useState('');
 
     const { token } = useAuth();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
 
     useEffect(() => {
         fetchEntries();
@@ -244,6 +245,7 @@ const exportToExcel = () => {
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Module</th>
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phase</th>
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
+                                <th style={{ padding: '16px 24px', fontWeight: '600', color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duration / Comments</th>
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
                                 <th style={{ padding: '16px 24px', textAlign: 'right', fontWeight: '600', color: '#64748b', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
                             </tr>
@@ -257,16 +259,16 @@ const exportToExcel = () => {
                                             <span style={{ fontWeight: '700', color: '#1e293b', fontSize: '14px' }}>{entry.userId?.name || 'Unknown'}</span>
                                         </td>
                                         <td style={{ padding: '16px 24px' }}>
-                                            <span style={{ color: '#64748b', fontSize: '14px' }}>{entry.project}</span>
+                                            <span style={{ color: '#334155', fontSize: '14px', fontWeight: '500' }}>{entry.project}</span>
                                         </td>
                                         <td style={{ padding: '16px 24px' }}>
-                                            <span style={{ color: '#64748b', fontSize: '14px' }}>{entry.module}</span>
+                                            <span style={{ color: '#334155', fontSize: '14px', fontWeight: '500' }}>{entry.module}</span>
                                         </td>
                                         <td style={{ padding: '16px 24px' }}>
-                                            <span style={{ color: '#64748b', fontSize: '14px' }}>{entry.phase}</span>
+                                            <span style={{ color: '#334155', fontSize: '14px', fontWeight: '500' }}>{entry.phase}</span>
                                         </td>
                                         <td style={{ padding: '16px 24px' }}>
-                                            <span style={{ color: '#64748b', fontSize: '14px' }}>{entry.date}</span>
+                                            <span style={{ color: '#334155', fontSize: '14px', fontWeight: '500' }}>{entry.date}</span>
                                         </td>
                                         <td style={{ padding: '16px 24px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -405,7 +407,7 @@ const exportToExcel = () => {
                                         <option value="">Select Phase</option>
                                         {(selectedProjectData?.phases?.length > 0 
                                             ? selectedProjectData.phases 
-                                            : ['alpha', 'beta', 'gold', 'scorm']
+                                            : ['Alpha', 'Beta', 'Gold', 'SCORM']
                                         ).map((p, i) => <option key={i} value={p}>{p}</option>)}
                                     </select>
                                 </div>

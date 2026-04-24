@@ -1,3 +1,4 @@
+import API_URL from '../utils/api';
 import {
     LayoutGrid,
     Clock,
@@ -10,14 +11,35 @@ import {
     ChevronRight,
     BarChart3,
     Briefcase,
-    X
+    X,
+    ClipboardCheck,
+    KeyRound
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import manshuLogo from '../assets/manshu_logo.png';
 
 const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+    const [templateUrl, setTemplateUrl] = useState('https://www.portfolio.manshulearning.com/admin');
+    
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/settings/template_url`);
+                if (res.data.value) {
+                    setTemplateUrl(res.data.value);
+                }
+            } catch (err) {
+                console.error('Error fetching template URL:', err);
+            }
+        };
+        fetchSettings();
+    }, []);
 
     const menuItems = user?.role === 'admin' ? [
         { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -27,13 +49,16 @@ const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
         { id: 'holidays', label: 'Holidays', icon: Gift },
         { id: 'projects', label: 'Manage Projects', icon: Briefcase },
         { id: 'payroll', label: 'Payroll', icon: DollarSign },
-        { id: 'templates', label: 'Templates', icon: FileText, isExternal: true, url: 'https://www.portfolio.manshulearning.com/admin' },
+        { id: 'settings', label: 'Settings', icon: KeyRound },
+        { id: 'templates', label: 'Templates', icon: FileText, isExternal: true, url: templateUrl },
     ] : [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-        { id: 'attendance', label: 'Timesheet', icon: Clock },
+        { id: 'attendance', label: 'Timesheets', icon: Clock },
+        { id: 'attendance_logs', label: 'Attendance Logs', icon: ClipboardCheck },
         { id: 'leave', label: 'Leave & Comp Off', icon: Calendar },
         { id: 'holidays', label: 'Holidays', icon: Gift },
         { id: 'payroll', label: 'My Payroll', icon: DollarSign },
+        { id: 'settings', label: 'Settings', icon: KeyRound },
         { id: 'templates', label: 'Templates', icon: FileText, isExternal: true, url: 'https://www.portfolio.manshulearning.com/admin' },
     ];
 
@@ -55,7 +80,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
 
                     {/* 🔥 ONLY LOGO (TEXT REMOVED) */}
                 <img 
-    src="/c60e662c-d159-4b54-b83e-50ed164cd42c.jpg" 
+    src={manshuLogo} 
     alt="logo"
     style={{ 
         height: '90px',
@@ -72,7 +97,16 @@ const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
                 )}
             </div>
 
-            <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <nav style={{ 
+                flex: 1, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '4px',
+                overflowY: 'auto',
+                paddingRight: '4px',
+                marginBottom: '16px',
+                scrollbarWidth: 'thin'
+            }}>
                 {menuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
@@ -99,7 +133,8 @@ const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
                                 transition: 'all 0.2s ease',
                                 textAlign: 'left',
                                 width: '100%',
-                                fontWeight: isActive ? '600' : '500'
+                                fontWeight: isActive ? '600' : '500',
+                                flexShrink: 0
                             }}
                         >
                             <Icon size={18} />
