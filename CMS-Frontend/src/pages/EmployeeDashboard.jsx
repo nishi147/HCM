@@ -1,4 +1,5 @@
 import API_URL from '../utils/api';
+import manshuLogo from '../assets/manshu_logo.png';
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
@@ -1473,10 +1474,7 @@ const EmployeeDashboard = () => {
                     zIndex: 900
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ background: 'var(--primary)', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                            <LayoutGrid size={16} />
-                        </div>
-                        <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-main)', margin: 0 }}>CMS Cloud</h2>
+                        <img src={manshuLogo} alt="Logo" style={{ height: '32px', width: 'auto' }} />
                     </div>
                     <button 
                         onClick={() => setIsSidebarOpen(true)}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
+import manshuLogo from '../assets/manshu_logo.png';
 import Sidebar from '../components/Sidebar';
 import AdminOverview from './AdminOverview';
 import EmployeeList from './EmployeeList';
@@ -82,10 +83,7 @@ const AdminDashboard = () => {
                     zIndex: 900
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ background: 'var(--primary)', width: '24px', height: '24px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                            <Menu size={14} />
-                        </div>
-                        <span style={{ fontWeight: '700', fontSize: '16px', color: 'var(--text-main)' }}>HCM Cloud</span>
+                        <img src={manshuLogo} alt="Logo" style={{ height: '28px', width: 'auto' }} />
                     </div>
                     <button 
                         onClick={() => setIsSidebarOpen(true)}
