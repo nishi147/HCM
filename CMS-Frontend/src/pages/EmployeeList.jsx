@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PromptDialog from '../components/PromptDialog';
 
 const EmployeeList = () => {
     const [employees, setEmployees] = useState([]);
@@ -22,6 +23,15 @@ const EmployeeList = () => {
         onConfirm: () => {}
     });
 
+    const [promptDialog, setPromptDialog] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        placeholder: '',
+        type: '',
+        onConfirm: () => {}
+    });
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -35,6 +45,8 @@ const EmployeeList = () => {
         status: 'Active'
     });
     const [error, setError] = useState('');
+    const [departments, setDepartments] = useState(['Development', 'Marketing', 'QA', 'ALL']);
+    const [positions, setPositions] = useState(['Developer', 'Executive', 'ALL']);
 
     const { token } = useAuth();
     
@@ -42,7 +54,91 @@ const EmployeeList = () => {
 
     useEffect(() => {
         fetchEmployees();
+        fetchCategories();
     }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const [deptRes, posRes] = await Promise.all([
+                axios.get(`${API_URL}/settings/departments`),
+                axios.get(`${API_URL}/settings/positions`)
+            ]);
+            if (deptRes.data.value) setDepartments(JSON.parse(deptRes.data.value));
+            if (posRes.data.value) setPositions(JSON.parse(posRes.data.value));
+        } catch (err) {
+            console.error('Error fetching categories:', err);
+        }
+    };
+
+    const handleAddCategory = (type) => {
+        setPromptDialog({
+            isOpen: true,
+            title: `Add New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+            message: `Please enter the name of the new ${type} you want to add to the directory.`,
+            placeholder: `Enter ${type} name...`,
+            type,
+            onConfirm: async (name) => {
+                const currentList = type === 'department' ? departments : positions;
+                if (currentList.includes(name)) {
+                    setError('This already exists!');
+                    setPromptDialog(prev => ({ ...prev, isOpen: false }));
+                    return;
+                }
+
+                const newList = [...currentList, name];
+                try {
+                    await axios.post(`${API_URL}/settings`, 
+                        { key: type === 'department' ? 'departments' : 'positions', value: JSON.stringify(newList) },
+                        { headers: { Authorization: `Bearer ${token}` }}
+                    );
+                    if (type === 'department') setDepartments(newList);
+                    else setPositions(newList);
+                    setPromptDialog(prev => ({ ...prev, isOpen: false }));
+                } catch (err) {
+                    console.error('Failed to add category:', err);
+                    setError('Failed to add ' + type);
+                    setPromptDialog(prev => ({ ...prev, isOpen: false }));
+                }
+            }
+        });
+    };
+
+    const handleDeleteCategory = (type) => {
+        const currentValue = type === 'department' ? formData.department : formData.position;
+        if (!currentValue) {
+            setError('Please select an item to delete');
+            return;
+        }
+
+        setConfirmDialog({
+            isOpen: true,
+            title: `Delete ${type.charAt(0).toUpperCase() + type.slice(1)}?`,
+            message: `Are you sure you want to remove "${currentValue}" from the list of ${type}s? This will not affect existing employees but they will no longer have this ${type} assigned properly if updated.`,
+            onConfirm: async () => {
+                const currentList = type === 'department' ? departments : positions;
+                const newList = currentList.filter(item => item !== currentValue);
+                
+                try {
+                    await axios.post(`${API_URL}/settings`, 
+                        { key: type === 'department' ? 'departments' : 'positions', value: JSON.stringify(newList) },
+                        { headers: { Authorization: `Bearer ${token}` }}
+                    );
+                    if (type === 'department') {
+                        setDepartments(newList);
+                        setFormData(prev => ({ ...prev, department: newList[0] || '' }));
+                    } else {
+                        setPositions(newList);
+                        setFormData(prev => ({ ...prev, position: newList[0] || '' }));
+                    }
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                } catch (err) {
+                    console.error('Failed to delete category:', err);
+                    setError('Failed to delete ' + type);
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                }
+            }
+        });
+    };
 
     const fetchEmployees = async () => {
         try {
@@ -132,7 +228,7 @@ const EmployeeList = () => {
                     await axios.delete(`${API_URL}/employees/${id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setConfirmDialog({ ...confirmDialog, isOpen: false });
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                     fetchEmployees();
                 } catch (err) {
                     console.error('Error deleting employee:', err);
@@ -297,35 +393,48 @@ const EmployeeList = () => {
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>
-                                        <Briefcase size={14} /> Department
-                                    </label>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
+                                            <Briefcase size={14} /> Department
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button type="button" title="Add Department" onClick={() => handleAddCategory('department')} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, display: 'flex' }}><Plus size={14} /></button>
+                                            <button type="button" title="Delete Selected" onClick={() => handleDeleteCategory('department')} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 0, display: 'flex' }}><Trash2 size={14} /></button>
+                                        </div>
+                                    </div>
                                     <select
                                         value={formData.department}
                                         onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                                         style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none', fontSize: '14px', background: 'var(--bg-main)' }}
                                         required
                                     >
-                                        <option value="Development">Development</option>
-                                        <option value="Marketing">Marketing</option>
-                                        <option value="QA">QA</option>
-                                        <option value="ALL">ALL</option>
+                                        <option value="">Select Department</option>
+                                        {departments.map(dept => (
+                                            <option key={dept} value={dept}>{dept}</option>
+                                        ))}
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>
-                                        <Tag size={14} /> Position
-                                    </label>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>
+                                            <Tag size={14} /> Position
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button type="button" title="Add Position" onClick={() => handleAddCategory('position')} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, display: 'flex' }}><Plus size={14} /></button>
+                                            <button type="button" title="Delete Selected" onClick={() => handleDeleteCategory('position')} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 0, display: 'flex' }}><Trash2 size={14} /></button>
+                                        </div>
+                                    </div>
                                     <select
                                         value={formData.position}
                                         onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                                         style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none', fontSize: '14px', background: 'var(--bg-main)' }}
                                         required
                                     >
-                                        <option value="Developer">Developer</option>
-                                        <option value="Executive">Executive</option>
-                                        <option value="ALL">ALL</option>
+                                        <option value="">Select Position</option>
+                                        {positions.map(pos => (
+                                            <option key={pos} value={pos}>{pos}</option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -421,6 +530,15 @@ const EmployeeList = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            <PromptDialog 
+                isOpen={promptDialog.isOpen}
+                title={promptDialog.title}
+                message={promptDialog.message}
+                placeholder={promptDialog.placeholder}
+                onConfirm={promptDialog.onConfirm}
+                onCancel={() => setPromptDialog({ ...promptDialog, isOpen: false })}
+            />
 
             <ConfirmDialog 
                 isOpen={confirmDialog.isOpen}

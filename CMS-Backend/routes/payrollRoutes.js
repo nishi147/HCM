@@ -5,7 +5,8 @@ const {
     createPayroll,
     getAllPayroll,
     updatePayrollStatus,
-    getMyPayroll
+    getMyPayroll,
+    deletePayroll
 } = require('../controllers/payrollController');
 
 router.use(auth);
@@ -17,5 +18,6 @@ router.get('/my', getMyPayroll);
 router.get('/all', authorize('admin'), getAllPayroll);
 router.post('/', authorize('admin'), createPayroll);
 router.put('/:id/status', authorize('admin'), updatePayrollStatus);
+router.delete('/:id', authorize('admin'), deletePayroll);
 
 module.exports = router;

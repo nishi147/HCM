@@ -59,7 +59,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
         { id: 'holidays', label: 'Holidays', icon: Gift },
         { id: 'payroll', label: 'My Payroll', icon: DollarSign },
         { id: 'settings', label: 'Settings', icon: KeyRound },
-        { id: 'templates', label: 'Templates', icon: FileText, isExternal: true, url: 'https://www.portfolio.manshulearning.com/admin' },
+        { id: 'templates', label: 'Templates', icon: FileText, isExternal: true, url: templateUrl },
     ];
 
     return (

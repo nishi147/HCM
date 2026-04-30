@@ -67,22 +67,18 @@ const AdminOverview = ({ setActiveTab }) => {
 
     const getMonthWiseSummary = () => {
         const summary = {};
+        const [year, month] = selectedMonth.split('-').map(Number);
+        const totalDaysInMonth = new Date(year, month, 0).getDate();
         
         employees.forEach(emp => {
             summary[emp._id] = {
                 name: emp.name,
                 present: 0,
-                leave: 0
+                leave: 0,
+                compOff: 0
             };
         });
 
-        const monthlyAttendance = attendance.filter(a => a.date.startsWith(selectedMonth));
-        monthlyAttendance.forEach(att => {
-            if (att.userId?._id && summary[att.userId._id]) {
-                summary[att.userId._id].present += 1;
-            }
-        });
-        
         leaves.forEach(l => {
             if (l.status !== 'Approved' || !l.userId?._id || !summary[l.userId._id]) return;
             
@@ -92,10 +88,20 @@ const AdminOverview = ({ setActiveTab }) => {
             while (current <= end) {
                 const dateStr = current.toISOString().split('T')[0];
                 if (dateStr.startsWith(selectedMonth)) {
-                    summary[l.userId._id].leave += 1;
+                    const value = l.dayType === 'Half Day' ? 0.5 : 1;
+                    if (l.type === 'Comp Off') {
+                        summary[l.userId._id].compOff += value;
+                    } else {
+                        summary[l.userId._id].leave += value;
+                    }
                 }
                 current.setDate(current.getDate() + 1);
             }
+        });
+
+        // Calculate present days: Total days in month - (leaves + compOffs)
+        Object.keys(summary).forEach(id => {
+            summary[id].present = totalDaysInMonth - summary[id].leave - summary[id].compOff;
         });
         
         return Object.values(summary).sort((a, b) => a.name.localeCompare(b.name));
@@ -106,7 +112,8 @@ const AdminOverview = ({ setActiveTab }) => {
         const data = summary.map(emp => ({
             Employee: emp.name,
             'Present Days': emp.present,
-            'Leave Days': emp.leave
+            'Leave Days': emp.leave,
+            'Comp Off': emp.compOff
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(data);
@@ -117,18 +124,33 @@ const AdminOverview = ({ setActiveTab }) => {
         saveAs(fileData, `Attendance_Summary_${selectedMonth}.xlsx`);
     };
 
-    const upcomingBirthdays = employees
-        .filter(emp => emp.dob)
-        .map(emp => {
+    const upcomingEvents = employees
+        .flatMap(emp => {
+            const events = [];
             const today = new Date(); today.setHours(0,0,0,0);
-            const dob = new Date(emp.dob);
-            const nextBday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-            if (nextBday < today) nextBday.setFullYear(today.getFullYear() + 1);
-            const diffDays = Math.ceil(Math.abs(nextBday - today) / (1000 * 60 * 60 * 24));
-            return { ...emp, nextBday, diffDays };
+            
+            if (emp.dob) {
+                const dob = new Date(emp.dob);
+                const nextBday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+                if (nextBday < today) nextBday.setFullYear(today.getFullYear() + 1);
+                const diffDays = Math.ceil(Math.abs(nextBday - today) / (1000 * 60 * 60 * 24));
+                events.push({ ...emp, type: 'Birthday', diffDays, date: nextBday });
+            }
+            
+            if (emp.doj) {
+                const doj = new Date(emp.doj);
+                const nextAnniversary = new Date(today.getFullYear(), doj.getMonth(), doj.getDate());
+                if (nextAnniversary < today) nextAnniversary.setFullYear(today.getFullYear() + 1);
+                const diffDays = Math.ceil(Math.abs(nextAnniversary - today) / (1000 * 60 * 60 * 24));
+                const years = nextAnniversary.getFullYear() - doj.getFullYear();
+                if (years > 0) {
+                    events.push({ ...emp, type: 'Work Anniversary', diffDays, date: nextAnniversary, years });
+                }
+            }
+            return events;
         })
         .sort((a, b) => a.diffDays - b.diffDays)
-        .slice(0, 3);
+        .slice(0, 6);
 
     const dailyStatus = getDailyStatus();
     const monthlySummary = getMonthWiseSummary();
@@ -162,41 +184,45 @@ const AdminOverview = ({ setActiveTab }) => {
                 })}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }} className="responsive-grid">
-                {/* Who is On Leave */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+                {/* Upcoming Celebrations */}
                 <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>On Leave Today</h3>
-                        <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', fontWeight: '700' }}>{dailyStatus.onLeave.length}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Upcoming Celebrations</h3>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {dailyStatus.onLeave.length > 0 ? dailyStatus.onLeave.slice(0, 4).map((emp, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>{emp.name[0]}</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                        {upcomingEvents.length > 0 ? upcomingEvents.map((event, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px', borderRadius: '12px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                <div style={{ 
+                                    padding: '10px', 
+                                    borderRadius: '10px', 
+                                    background: event.type === 'Birthday' ? '#fff1f2' : '#eff6ff', 
+                                    color: event.type === 'Birthday' ? '#e11d48' : '#2563eb' 
+                                }}>
+                                    {event.type === 'Birthday' ? <Gift size={20} /> : <Briefcase size={20} />}
+                                </div>
                                 <div style={{ flex: 1 }}>
-                                    <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>{emp.name}</p>
-                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{emp.type || 'Casual Leave'}</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <p style={{ fontSize: '14px', fontWeight: '700', margin: 0, color: 'var(--text-main)' }}>{event.name}</p>
+                                        <span style={{ 
+                                            fontSize: '10px', 
+                                            padding: '2px 6px', 
+                                            borderRadius: '6px', 
+                                            background: event.type === 'Birthday' ? '#ffe4e6' : '#dbeafe', 
+                                            color: event.type === 'Birthday' ? '#be123c' : '#1d4ed8',
+                                            fontWeight: '800',
+                                            textTransform: 'uppercase'
+                                        }}>{event.type}</span>
+                                    </div>
+                                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+                                        {event.diffDays === 0 ? 
+                                            (event.type === 'Birthday' ? 'Birthday Today!' : `${event.years} Year Anniversary Today!`) : 
+                                            (event.type === 'Birthday' ? `Birthday in ${event.diffDays} days` : `${event.years} Year Anniversary in ${event.diffDays} days`)
+                                        }
+                                    </p>
                                 </div>
                             </div>
-                        )) : <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>No one is on leave today!</p>}
-                    </div>
-                </div>
-
-                {/* Birthdays */}
-                <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Upcoming Birthdays</h3>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {upcomingBirthdays.length > 0 ? upcomingBirthdays.map((emp, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ padding: '8px', borderRadius: '8px', background: '#fff1f2', color: '#e11d48' }}><Gift size={16} /></div>
-                                <div style={{ flex: 1 }}>
-                                    <p style={{ fontSize: '13px', fontWeight: '600', margin: 0 }}>{emp.name}</p>
-                                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>{emp.diffDays === 0 ? 'Birthday Today!' : `Birthday in ${emp.diffDays} days`}</p>
-                                </div>
-                            </div>
-                        )) : <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>No upcoming birthdays</p>}
+                        )) : <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>No upcoming celebrations</p>}
                     </div>
                 </div>
             </div>
@@ -235,10 +261,18 @@ const AdminOverview = ({ setActiveTab }) => {
                                             </span>
                                         </td>
                                         <td style={{ padding: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                                            {emp.checkIn ? new Date(emp.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                            {(() => {
+                                                if (!emp.checkIn) return '--:--';
+                                                const d = new Date(emp.checkIn);
+                                                return isNaN(d.getTime()) ? emp.checkIn : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            })()}
                                         </td>
                                         <td style={{ padding: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                                            {emp.checkOut ? new Date(emp.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                            {(() => {
+                                                if (!emp.checkOut) return '--:--';
+                                                const d = new Date(emp.checkOut);
+                                                return isNaN(d.getTime()) ? emp.checkOut : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            })()}
                                         </td>
                                     </tr>
                                 );
@@ -275,6 +309,7 @@ const AdminOverview = ({ setActiveTab }) => {
                                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>EMPLOYEE</th>
                                 <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>PRESENT DAYS</th>
                                 <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>LEAVE DAYS</th>
+                                <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>COMP OFF</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,11 +322,14 @@ const AdminOverview = ({ setActiveTab }) => {
                                     <td style={{ padding: '16px', fontSize: '15px', fontWeight: '800', color: '#3b82f6', textAlign: 'center', background: '#eff6ff' }}>
                                         {emp.leave}
                                     </td>
+                                    <td style={{ padding: '16px', fontSize: '15px', fontWeight: '800', color: '#f59e0b', textAlign: 'center', background: '#fffbeb' }}>
+                                        {emp.compOff}
+                                    </td>
                                 </tr>
                             ))}
                             {monthlySummary.length === 0 && (
                                 <tr>
-                                    <td colSpan="3" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No data available for this month.</td>
+                                    <td colSpan="4" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>No data available for this month.</td>
                                 </tr>
                             )}
                         </tbody>

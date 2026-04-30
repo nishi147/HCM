@@ -2,7 +2,7 @@ const Attendance = require('../models/Attendance');
 const checkIn = async (req, res) => {
     try {
         const now = new Date();
-        const date = now.toISOString().split('T')[0];
+        const date = now.toLocaleDateString('en-CA'); // Gets YYYY-MM-DD in local time
         const time = now.toISOString();
 
         // Check if already checked in
@@ -28,7 +28,7 @@ const checkIn = async (req, res) => {
 const checkOut = async (req, res) => {
     try {
         const now = new Date();
-        const date = now.toISOString().split('T')[0];
+        const date = now.toLocaleDateString('en-CA');
         const time = now.toISOString();
 
         const attendance = await Attendance.findOne({ userId: req.user.id, date });
@@ -51,7 +51,7 @@ const checkOut = async (req, res) => {
 
 const getAttendanceStatus = async (req, res) => {
     try {
-        const date = new Date().toISOString().split('T')[0];
+        const date = new Date().toLocaleDateString('en-CA');
         const attendance = await Attendance.findOne({ userId: req.user.id, date });
         res.json(attendance || { message: 'Not checked in' });
     } catch (error) {

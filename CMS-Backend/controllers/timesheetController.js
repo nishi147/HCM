@@ -35,7 +35,7 @@ const addTimesheet = async (req, res) => {
 const getAllTimesheets = async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        let query = {};
+        let query = { isDeleted: false };
 
         if (startDate && endDate) {
             query.date = { $gte: startDate, $lte: endDate };
@@ -56,7 +56,7 @@ const getAllTimesheets = async (req, res) => {
 const getMyTimesheets = async (req, res) => {
     try {
         const { month, year } = req.query;
-        let query = { userId: req.user.id };
+        let query = { userId: req.user.id, isDeleted: false };
 
         if (month && year) {
             const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
@@ -92,9 +92,30 @@ const updateTimesheetStatus = async (req, res) => {
     }
 };
 
+const deleteTimesheet = async (req, res) => {
+    try {
+        const timesheet = await Timesheet.findById(req.params.id);
+        if (!timesheet) {
+            return res.status(404).json({ message: 'Timesheet not found' });
+        }
+
+        // Only allow user to delete their own or admin to delete any
+        if (timesheet.userId.toString() !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        timesheet.isDeleted = true;
+        await timesheet.save();
+        res.json({ message: 'Timesheet removed from panel' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     addTimesheet,
     getAllTimesheets,
     getMyTimesheets,
-    updateTimesheetStatus
+    updateTimesheetStatus,
+    deleteTimesheet
 };

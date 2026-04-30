@@ -41,8 +41,8 @@ const users = [
     },
     {
         name: 'Admin User',
-        email: 'admin@demo.com',
-        password: 'adminpassword',
+        email: 'admin@manshulearning.com',
+        password: 'Manaswin@1103',
         role: 'admin',
         department: 'Management',
         position: 'System Admin',
@@ -115,7 +115,7 @@ async function seed() {
                         userId: savedUser._id,
                         startDate: '2026-03-15',
                         endDate: '2026-03-16',
-                        type: 'Casual Leave',
+                        type: 'Paid Leave',
                         reason: 'Personal work',
                         status: 'Pending'
                     });

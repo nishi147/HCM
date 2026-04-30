@@ -95,24 +95,32 @@ const AdminAttendance = () => {
                                         <td style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '14px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <Clock size={14} color="#16a34a" />
-                                                {record.checkIn ? (record.checkIn.includes('T') ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : record.checkIn) : '--:--'}
+                                                {(() => {
+                                                    if (!record.checkIn) return '--:--';
+                                                    const d = new Date(record.checkIn);
+                                                    return isNaN(d.getTime()) ? record.checkIn : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                                })()}
                                             </div>
                                         </td>
                                         <td style={{ padding: '16px 24px', color: 'var(--text-main)', fontSize: '14px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <Clock size={14} color="#dc2626" />
-                                                {record.checkOut ? (record.checkOut.includes('T') ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : record.checkOut) : '--:--'}
+                                                {(() => {
+                                                    if (!record.checkOut) return '--:--';
+                                                    const d = new Date(record.checkOut);
+                                                    return isNaN(d.getTime()) ? record.checkOut : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                                })()}
                                             </div>
                                         </td>
                                         <td style={{ padding: '16px 24px' }}>
                                             <span style={{
-                                                background: '#f0fdf4',
-                                                color: '#16a34a',
+                                                background: record.status === 'Present' ? '#f0fdf4' : record.status === 'Leave' ? '#f3e8ff' : record.status === 'Absent' ? '#fef2f2' : '#fffbeb',
+                                                color: record.status === 'Present' ? '#16a34a' : record.status === 'Leave' ? '#a855f7' : record.status === 'Absent' ? '#ef4444' : '#f59e0b',
                                                 padding: '4px 12px',
                                                 borderRadius: '6px',
                                                 fontSize: '12px',
                                                 fontWeight: '600',
-                                                border: '1px solid #dcfce7'
+                                                border: `1px solid ${record.status === 'Present' ? '#dcfce7' : record.status === 'Leave' ? '#e9d5ff' : record.status === 'Absent' ? '#fee2e2' : '#fef3c7'}`
                                             }}>
                                                 {record.status}
                                             </span>

@@ -74,7 +74,7 @@ const AdminHoliday = () => {
                     await axios.delete(`${API_URL}/holidays/${id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setConfirmDialog({ ...confirmDialog, isOpen: false });
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                     fetchHolidays();
                 } catch (err) {
                     console.error('Error deleting holiday:', err);

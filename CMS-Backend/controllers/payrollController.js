@@ -138,9 +138,21 @@ const getMyPayroll = async (req, res) => {
     }
 };
 
+// Delete payroll record
+const deletePayroll = async (req, res) => {
+    try {
+        const payroll = await Payroll.findByIdAndDelete(req.params.id);
+        if (!payroll) return res.status(404).json({ message: 'Payroll not found' });
+        res.json({ message: 'Payroll record deleted' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     createPayroll,
     getAllPayroll,
     updatePayrollStatus,
-    getMyPayroll
+    getMyPayroll,
+    deletePayroll
 };

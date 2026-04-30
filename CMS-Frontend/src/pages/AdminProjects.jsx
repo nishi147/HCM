@@ -20,6 +20,7 @@ const AdminProjects = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
     const [error, setError] = useState('');
+    const [showInactive, setShowInactive] = useState(false);
 
     // Custom Modal State
     const [confirmDialog, setConfirmDialog] = useState({
@@ -74,6 +75,12 @@ const AdminProjects = () => {
 
     const getAnalyticsData = () => {
         const data = {};
+        
+        // Initialize with all projects if we want to show inactive ones
+        projects.forEach(p => {
+            data[p.name] = { total: 0, phases: {}, modules: {} };
+        });
+
         timesheets.forEach(ts => {
             if (filterProject !== 'All' && ts.project !== filterProject) return;
 
@@ -81,10 +88,14 @@ const AdminProjects = () => {
                 data[ts.project] = { total: 0, phases: {}, modules: {} };
             }
 
+            const rawPhase = ts.phase?.trim();
+            if (!rawPhase) return;
+            const phaseKey = rawPhase.toUpperCase() === 'SCORM' ? 'SCORM' : rawPhase.charAt(0).toUpperCase() + rawPhase.slice(1).toLowerCase();
+
             // Project level aggregation
             data[ts.project].total += ts.duration;
-            if (!data[ts.project].phases[ts.phase]) data[ts.project].phases[ts.phase] = { total: 0 };
-            data[ts.project].phases[ts.phase].total += ts.duration;
+            if (!data[ts.project].phases[phaseKey]) data[ts.project].phases[phaseKey] = { total: 0 };
+            data[ts.project].phases[phaseKey].total += ts.duration;
 
             // Module level aggregation
             if (!data[ts.project].modules[ts.module]) {
@@ -94,9 +105,9 @@ const AdminProjects = () => {
             const modData = data[ts.project].modules[ts.module];
             modData.total += ts.duration;
 
-            if (!modData.phases[ts.phase]) modData.phases[ts.phase] = { total: 0, records: [] };
-            modData.phases[ts.phase].total += ts.duration;
-            modData.phases[ts.phase].records.push(ts);
+            if (!modData.phases[phaseKey]) modData.phases[phaseKey] = { total: 0, records: [] };
+            modData.phases[phaseKey].total += ts.duration;
+            modData.phases[phaseKey].records.push(ts);
         });
         return data;
     };
@@ -109,7 +120,13 @@ const AdminProjects = () => {
     // Get unique phases for columns based on projects
     const allPhases = ['Alpha', 'Beta', 'Gold', 'SCORM']; // default phases
     projects.forEach(p => p.phases.forEach(ph => {
-        if (!allPhases.includes(ph)) allPhases.push(ph);
+        const cleanPh = ph?.trim();
+        if (cleanPh) {
+            const normalized = cleanPh.toUpperCase() === 'SCORM' ? 'SCORM' : cleanPh.charAt(0).toUpperCase() + cleanPh.slice(1).toLowerCase();
+            if (!allPhases.includes(normalized)) {
+                allPhases.push(normalized);
+            }
+        }
     }));
 
     const handleOpenModal = (project = null) => {
@@ -133,6 +150,32 @@ const AdminProjects = () => {
             });
         }
         setIsModalOpen(true);
+    };
+
+    const handleDeleteRecord = (id) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Archive Timesheet',
+            message: 'Are you sure you want to remove this entry from the panel? It will remain archived in the database.',
+            confirmText: 'Archive Entry',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_URL}/timesheets/${id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    // Update local state to remove the record immediately
+                    setDetailsModal(prev => ({
+                        ...prev,
+                        records: prev.records.filter(r => r._id !== id)
+                    }));
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    fetchData(); // Refresh main analytics data
+                } catch (err) {
+                    console.error('Error deleting timesheet record:', err);
+                }
+            }
+        });
     };
 
     const addModule = () => {
@@ -206,7 +249,7 @@ const AdminProjects = () => {
                     await axios.delete(`${API_URL}/projects/${id}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setConfirmDialog({ ...confirmDialog, isOpen: false });
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
                     fetchProjects();
                 } catch (err) {
                     console.error('Error deleting project:', err);
@@ -312,7 +355,21 @@ const AdminProjects = () => {
                 </div>
             ) : (
                 <div className="card" style={{ padding: '24px', borderRadius: '20px', background: 'white', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '20px', marginBottom: '20px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            <input 
+                                type="checkbox" 
+                                checked={showInactive}
+                                onChange={(e) => setShowInactive(e.target.checked)}
+                                style={{ 
+                                    width: '16px', 
+                                    height: '16px', 
+                                    cursor: 'pointer',
+                                    accentColor: 'var(--primary)' 
+                                }}
+                            />
+                            Show Inactive Projects (0 Hrs)
+                        </label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 12px' }}>
                             <Filter size={16} color="var(--text-muted)" />
                             <select 
@@ -339,7 +396,12 @@ const AdminProjects = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {Object.keys(analyticsData).map((projName, pIndex) => {
+                                {Object.keys(analyticsData)
+                                    .filter(projName => {
+                                        if (filterProject !== 'All') return projName === filterProject;
+                                        return showInactive || analyticsData[projName].total > 0;
+                                    })
+                                    .map((projName, pIndex) => {
                                     const projData = analyticsData[projName];
                                     const modules = Object.keys(projData.modules);
                                     const isExpanded = expandedProjects[projName];
@@ -362,7 +424,9 @@ const AdminProjects = () => {
                                                 </td>
                                                 <td style={{ padding: '8px 12px', fontWeight: '800', color: '#0f172a', textAlign: 'center', borderRight: '1px solid var(--border)', background: '#e2e8f0' }}>{projData.total} Hrs</td>
                                                 {allPhases.map(phase => {
-                                                    const hrs = projData.phases[phase] ? projData.phases[phase].total : 0;
+                                                    // Find the matching phase in projData (case-insensitive)
+                                                    const matchingPhase = Object.keys(projData.phases).find(p => p.toLowerCase() === phase.toLowerCase());
+                                                    const hrs = matchingPhase ? projData.phases[matchingPhase].total : 0;
                                                     return (
                                                         <td key={phase} style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '700', color: hrs > 0 ? '#1e293b' : '#cbd5e1' }}>
                                                             {hrs > 0 ? `${hrs} Hrs` : '-'}
@@ -385,7 +449,8 @@ const AdminProjects = () => {
                                                         </td>
                                                         <td style={{ padding: '6px 12px', fontWeight: '800', color: '#334155', textAlign: 'center', borderRight: '1px solid var(--border)', background: '#f1f5f9' }}>{modData.total} Hrs</td>
                                                         {allPhases.map(phase => {
-                                                            const phaseData = modData.phases[phase];
+                                                            const matchingPhase = Object.keys(modData.phases).find(p => p.toLowerCase() === phase.toLowerCase());
+                                                            const phaseData = matchingPhase ? modData.phases[matchingPhase] : null;
                                                             const hrs = phaseData ? phaseData.total : 0;
                                                             return (
                                                                 <td key={phase} style={{ padding: '6px 12px', textAlign: 'center' }}>
@@ -445,13 +510,31 @@ const AdminProjects = () => {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {detailsModal.records.map((rec, i) => (
-                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                                        <div>
-                                            <p style={{ fontWeight: '700', color: '#1e293b', margin: 0, fontSize: '15px' }}>{rec.userId?.name || 'Unknown Employee'}</p>
-                                            <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/> {new Date(rec.date).toLocaleDateString()}</p>
+                                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <p style={{ fontWeight: '700', color: '#1e293b', margin: 0, fontSize: '15px' }}>{rec.userId?.name || 'Unknown Employee'}</p>
+                                                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <Clock size={12} /> {new Date(rec.date).toLocaleDateString('en-GB')}
+                                                </p>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <div style={{ background: '#eff6ff', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                                                    <span style={{ fontWeight: '800', color: '#2563eb' }}>{rec.duration} Hrs</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteRecord(rec._id)}
+                                                    title="Archive"
+                                                    style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#dc2626', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div style={{ background: '#eff6ff', padding: '6px 12px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
-                                            <span style={{ fontWeight: '800', color: '#2563eb' }}>{rec.duration} Hrs</span>
+                                        
+                                        <div style={{ padding: '10px 12px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px', color: '#475569' }}>
+                                            <span style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Comment</span>
+                                            {rec.comment || <span style={{ fontStyle: 'italic', color: '#cbd5e1' }}>No comment provided</span>}
                                         </div>
                                     </div>
                                 ))}
@@ -559,10 +642,10 @@ const AdminProjects = () => {
 
             <ConfirmDialog 
                 isOpen={confirmDialog.isOpen}
-                title={confirmDialog.title}
-                message={confirmDialog.message}
-                type={confirmDialog.type}
-                confirmText={confirmDialog.confirmText}
+                title={confirmDialog.title || "Confirmation"}
+                message={confirmDialog.message || "Are you sure?"}
+                type={confirmDialog.type || "danger"}
+                confirmText={confirmDialog.confirmText || "Confirm"}
                 onConfirm={confirmDialog.onConfirm}
                 onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
             />

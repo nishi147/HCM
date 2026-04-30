@@ -79,7 +79,7 @@ const CelebrationCard = ({ type, user, years }) => {
 };
 
 const AttendanceTracker = ({ data, handleCheckIn, handleCheckOut, error, viewDate, handlePrevMonth, handleNextMonth }) => {
-    const { attendance, attendanceHistory, timesheets, holidays = [] } = data;
+    const { attendance, attendanceHistory, timesheets, holidays = [], leaves = [] } = data;
     const [elapsedTime, setElapsedTime] = useState('00:00:00');
 
 
@@ -134,12 +134,18 @@ const AttendanceTracker = ({ data, handleCheckIn, handleCheckOut, error, viewDat
         const dayTimesheets = timesheets.filter(ts => ts.date === dateStr);
         const att = attendanceHistory.find(ah => ah.date === dateStr);
         const isHoliday = holidays.find(h => h.date === dateStr);
+        const onLeave = leaves.find(l => {
+            const start = l.startDate;
+            const end = l.endDate;
+            return dateStr >= start && dateStr <= end && l.status === 'Approved';
+        });
 
         let status = 'none';
         if (isHoliday) status = 'holiday';
+        else if (onLeave) status = 'leave';
         else if (att) status = 'completed';
 
-        return { status, isHoliday };
+        return { status, isHoliday, onLeave };
     };
 
     return (
@@ -247,7 +253,7 @@ const AttendanceTracker = ({ data, handleCheckIn, handleCheckOut, error, viewDat
                                 } else if (data.status === 'completed') {
                                     styles.background = '#f0fdf4';
                                     styles.border = '1px solid #10b981';
-                                } else if (data.status === 'holiday') {
+                                } else if (data.status === 'holiday' || data.status === 'leave') {
                                     styles.background = '#f3e8ff';
                                     styles.border = '1px solid #d8b4fe';
                                 }
@@ -264,7 +270,7 @@ const AttendanceTracker = ({ data, handleCheckIn, handleCheckOut, error, viewDat
                                                 width: '6px',
                                                 height: '6px',
                                                 borderRadius: '50%',
-                                                background: data.status === 'completed' ? '#10b981' : data.status === 'holiday' ? '#a855f7' : '#94a3b8'
+                                                background: data.status === 'completed' ? '#10b981' : (data.status === 'holiday' || data.status === 'leave') ? '#a855f7' : '#94a3b8'
                                             }} />
                                         </>
                                     )}
@@ -276,8 +282,8 @@ const AttendanceTracker = ({ data, handleCheckIn, handleCheckOut, error, viewDat
                     <div style={{ display: 'flex', gap: '24px', marginTop: '24px' }}>
                         {[
                             { color: '#10b981', label: 'Present' },
-                            { color: '#94a3b8', label: 'Absent / Leave' },
-                            { color: '#a855f7', label: 'Public Holiday' }
+                            { color: '#a855f7', label: 'Holiday / Leave' },
+                            { color: '#94a3b8', label: 'Absent' }
                         ].map(item => (
                             <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color }} />
@@ -418,17 +424,36 @@ const DashboardHome = ({ data, handleCheckIn, handleCheckOut, error, viewDate, h
                     <div className="card" style={{ padding: '32px', background: '#ffffff', borderRadius: '24px', border: '1px solid var(--border)' }}>
                         <h2 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', marginBottom: '24px' }}>Employee Utilization</h2>
                         <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                            <div style={{ position: 'relative', width: '160px', height: '160px', margin: '0 auto' }}>
-                                <svg width="160" height="160" viewBox="0 0 160 160">
-                                    <circle cx="80" cy="80" r="70" fill="none" stroke="#f1f5f9" strokeWidth="12" />
-                                    <circle cx="80" cy="80" r="70" fill="none" stroke="var(--primary)" strokeWidth="12" strokeDasharray="440" strokeDashoffset={440 - (440 * (Math.min(timesheets.length, 22) / 22))} strokeLinecap="round" transform="rotate(-90 80 80)" />
-                                </svg>
-                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                                    <h4 style={{ fontSize: '28px', fontWeight: '800', margin: 0 }}>{Math.round((Math.min(timesheets.length, 22) / 22) * 100)}%</h4>
-                                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Target achieved</p>
-                                </div>
-                            </div>
-                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '24px', fontWeight: '500' }}>You have completed {timesheets.length} days this month.</p>
+                            {(() => {
+                                const uniqueDays = new Set(timesheets.map(ts => ts.date)).size;
+                                const targetDays = 22;
+                                const percentage = Math.min(Math.round((uniqueDays / targetDays) * 100), 100);
+                                const dashOffset = 440 - (440 * (percentage / 100));
+
+                                return (
+                                    <>
+                                        <div style={{ position: 'relative', width: '160px', height: '160px', margin: '0 auto' }}>
+                                            <svg width="160" height="160" viewBox="0 0 160 160">
+                                                <circle cx="80" cy="80" r="70" fill="none" stroke="#f1f5f9" strokeWidth="12" />
+                                                <circle 
+                                                    cx="80" cy="80" r="70" fill="none" 
+                                                    stroke="var(--primary)" strokeWidth="12" 
+                                                    strokeDasharray="440" 
+                                                    strokeDashoffset={dashOffset} 
+                                                    strokeLinecap="round" 
+                                                    transform="rotate(-90 80 80)"
+                                                    style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+                                                />
+                                            </svg>
+                                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                                                <h4 style={{ fontSize: '28px', fontWeight: '800', margin: 0 }}>{percentage}%</h4>
+                                                <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>Target achieved</p>
+                                            </div>
+                                        </div>
+                                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '24px', fontWeight: '500' }}>You have logged work for {uniqueDays} days this month.</p>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -1277,7 +1302,7 @@ const EmployeeDashboard = () => {
             // Fetch all data in parallel; use allSettled so one failure doesn't block the rest
             const [attRes, tsRes, lvRes, hlRes, histRes, pyRes] = await Promise.allSettled([
                 axios.get(`${API_URL}/attendance/status`, { headers }),
-                axios.get(`${API_URL}/timesheets/my`, { headers }),
+                axios.get(`${API_URL}/timesheets/my`, { headers, params }),
                 axios.get(`${API_URL}/leaves/my`, { headers }),
                 axios.get(`${API_URL}/holidays`, { headers }),
                 axios.get(`${API_URL}/attendance/history`, { headers }),

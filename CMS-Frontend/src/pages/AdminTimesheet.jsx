@@ -2,10 +2,11 @@ import API_URL from '../utils/api';
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useState, useEffect } from 'react';
-import { Search, Plus, Check, X, Filter, MoreHorizontal, Clock, AlertCircle, Calendar, Briefcase, Tag, Hash } from 'lucide-react';
+import { Search, Plus, Check, X, Filter, MoreHorizontal, Clock, AlertCircle, Calendar, Briefcase, Tag, Hash, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const AdminTimesheet = () => {
     const [entries, setEntries] = useState([]);
@@ -26,6 +27,7 @@ const AdminTimesheet = () => {
         date: new Date().toISOString().split('T')[0]
     });
     const [error, setError] = useState('');
+    const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, id: null });
 
     const { token } = useAuth();
     
@@ -88,6 +90,22 @@ const AdminTimesheet = () => {
             fetchEntries();
         } catch (err) {
             console.error('Error updating status:', err);
+        }
+    };
+
+    const handleDelete = (id) => {
+        setConfirmDialog({ isOpen: true, id });
+    };
+
+    const confirmDelete = async () => {
+        try {
+            await axios.delete(`${API_URL}/timesheets/${confirmDialog.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setConfirmDialog({ isOpen: false, id: null });
+            fetchEntries();
+        } catch (err) {
+            console.error('Error deleting timesheet:', err);
         }
     };
 
@@ -290,24 +308,33 @@ const exportToExcel = () => {
                                             </span>
                                         </td>
                                         <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                                            {entry.status === 'Pending' ? (
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                                                    <button
-                                                        onClick={() => handleStatusUpdate(entry._id, 'Approved')}
-                                                        style={{ background: '#f0fdf4', border: '1px solid #dcfce7', color: '#16a34a', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
-                                                    >
-                                                        <Check size={14} strokeWidth={3} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleStatusUpdate(entry._id, 'Rejected')}
-                                                        style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#dc2626', cursor: 'pointer', padding: '4px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
-                                                    >
-                                                        <X size={14} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div style={{ width: '60px' }}></div>
-                                            )}
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                                                {entry.status === 'Pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(entry._id, 'Approved')}
+                                                            title="Approve"
+                                                            style={{ background: '#f0fdf4', border: '1px solid #dcfce7', color: '#16a34a', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                                        >
+                                                            <Check size={14} strokeWidth={3} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(entry._id, 'Rejected')}
+                                                            title="Reject"
+                                                            style={{ background: '#fef2f2', border: '1px solid #fee2e2', color: '#dc2626', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                                        >
+                                                            <X size={14} strokeWidth={3} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDelete(entry._id)}
+                                                    title="Archive (Hide from panel)"
+                                                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -434,6 +461,14 @@ const exportToExcel = () => {
                     </div>
                 )}
             </AnimatePresence>
+            <ConfirmDialog 
+                isOpen={confirmDialog.isOpen}
+                title="Archive Timesheet"
+                message="Are you sure you want to remove this entry from the panel? It will remain archived in the database."
+                confirmText="Archive Entry"
+                onConfirm={confirmDelete}
+                onCancel={() => setConfirmDialog({ isOpen: false, id: null })}
+            />
         </div>
     </div>
     );

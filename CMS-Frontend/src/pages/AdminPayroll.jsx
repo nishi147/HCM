@@ -4,6 +4,7 @@ import { Plus, DollarSign, Calendar, User, FileText, Check, X, Search, CreditCar
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const AdminPayroll = () => {
     const [payrolls, setPayrolls] = useState([]);
@@ -28,6 +29,15 @@ const AdminPayroll = () => {
 
     const { token } = useAuth();
     
+    // Custom Modal State
+    const [confirmDialog, setConfirmDialog] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        type: 'danger',
+        onConfirm: () => {},
+        confirmText: 'Confirm'
+    });
 
     useEffect(() => {
         fetchData();
@@ -83,9 +93,7 @@ const AdminPayroll = () => {
             const start = new Date(leave.startDate);
             const end = new Date(leave.endDate);
 
-            // Iterate through each day of the leave
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                // Only count if it's in the target month/year
                 if (d.getMonth() === monthIndex && d.getFullYear() === year) {
                     const dateStr = d.toISOString().split('T')[0];
                     const holiday = holidays.find(h => h.date === dateStr);
@@ -108,31 +116,69 @@ const AdminPayroll = () => {
         return 0;
     };
 
+    const calculateAutoBonus = (userId, mIndex, yr) => {
+        if (!userId || mIndex === undefined || !yr) return { bonus: 0, days: 0 };
+
+        const selectedEmp = employees.find(e => e._id === userId);
+        if (!selectedEmp) return { bonus: 0, days: 0 };
+
+        const compOffs = leaves.filter(l =>
+            String(l.userId?._id || l.userId) === String(userId) &&
+            l.status === 'Approved' &&
+            l.type === 'Comp Off'
+        );
+
+        let totalCompOffDays = 0;
+        const monthIndex = parseInt(mIndex);
+        const year = parseInt(yr);
+
+        compOffs.forEach(leave => {
+            const start = new Date(leave.startDate);
+            const end = new Date(leave.endDate);
+
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                if (d.getMonth() === monthIndex && d.getFullYear() === year) {
+                    if (leave.dayType === 'Half Day') totalCompOffDays += 0.5;
+                    else totalCompOffDays += 1;
+                }
+            }
+        });
+
+        if (totalCompOffDays > 0) {
+            const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+            const bonus = ((selectedEmp.baseSalary || 0) / daysInMonth) * totalCompOffDays;
+            return { bonus: Math.round(bonus), days: totalCompOffDays };
+        }
+        return { bonus: 0, days: 0 };
+    };
+
     const handleEmployeeSelect = (userId) => {
         const selectedEmp = employees.find(emp => emp._id === userId);
         const base = selectedEmp ? (selectedEmp.baseSalary || 0) : 0;
 
-        // Use current month/year if not set
-        const m = formData.month || new Date().getMonth();
-        const y = formData.year || new Date().getFullYear();
+        const m = formData.month ?? new Date().getMonth();
+        const y = formData.year ?? new Date().getFullYear();
 
         const ded = calculateAutoDeduction(userId, m, y);
-        setFormData({ ...formData, userId, base, deductions: ded, month: m, year: y });
+        const { bonus, days } = calculateAutoBonus(userId, m, y);
+        setFormData({ ...formData, userId, base, deductions: ded, bonus, extraDays: days, month: m, year: y });
     };
 
     const handleDateChange = (type, value) => {
         const newMonth = type === 'month' ? value : formData.month;
         const newYear = type === 'year' ? value : formData.year;
-        const ded = calculateAutoDeduction(formData.userId, newMonth, newYear);
         
-        // Recalculate bonus if extraDays exists
-        let newBonus = formData.bonus;
-        if (formData.userId && formData.extraDays > 0) {
-            const daysInMonth = new Date(newYear, newMonth + 1, 0).getDate();
-            newBonus = Math.round((formData.base / daysInMonth) * formData.extraDays);
-        }
+        const ded = calculateAutoDeduction(formData.userId, newMonth, newYear);
+        const { bonus, days } = calculateAutoBonus(formData.userId, newMonth, newYear);
 
-        setFormData({ ...formData, month: newMonth, year: newYear, deductions: ded, bonus: newBonus });
+        setFormData({ 
+            ...formData, 
+            month: newMonth, 
+            year: newYear, 
+            deductions: ded, 
+            bonus, 
+            extraDays: days 
+        });
     };
 
     const handleExtraDaysChange = (days) => {
@@ -145,6 +191,27 @@ const AdminPayroll = () => {
         }
         
         setFormData({ ...formData, extraDays, bonus });
+    };
+
+    const handleDelete = (id) => {
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Delete Record?',
+            message: 'Are you sure you want to delete this payroll record? This action cannot be undone.',
+            type: 'danger',
+            confirmText: 'Delete Record',
+            onConfirm: async () => {
+                try {
+                    await axios.delete(`${API_URL}/payroll/${id}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                    fetchData();
+                } catch (err) {
+                    console.error('Error deleting payroll:', err);
+                }
+            }
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -299,14 +366,14 @@ const AdminPayroll = () => {
                             </div>
 
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>Employee</label>
+                                        <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>Employee</label>
                                         <select
                                             required
                                             value={formData.userId}
                                             onChange={(e) => handleEmployeeSelect(e.target.value)}
-                                            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none' }}
+                                            style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', fontSize: '14px', fontWeight: '500' }}
                                         >
                                             <option value="">Select Employee</option>
                                             {employees.map(emp => (
@@ -315,13 +382,13 @@ const AdminPayroll = () => {
                                         </select>
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-muted)' }}>Month/Year</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                        <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>Month/Year</label>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                             <select
                                                 required
                                                 value={formData.month}
                                                 onChange={(e) => handleDateChange('month', parseInt(e.target.value))}
-                                                style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none' }}
+                                                style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', fontSize: '14px', fontWeight: '500' }}
                                             >
                                                 {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
                                                     <option key={m} value={i}>{m}</option>
@@ -331,7 +398,7 @@ const AdminPayroll = () => {
                                                 required
                                                 value={formData.year}
                                                 onChange={(e) => handleDateChange('year', parseInt(e.target.value))}
-                                                style={{ padding: '12px', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none' }}
+                                                style={{ padding: '14px', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-main)', outline: 'none', fontSize: '14px', fontWeight: '500' }}
                                             >
                                                 {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map(y => (
                                                     <option key={y} value={y}>{y}</option>
@@ -341,33 +408,43 @@ const AdminPayroll = () => {
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#16a34a', marginBottom: '8px', display: 'block' }}>Base Salary (₹)</label>
-                                        <input type="number" required value={formData.base} onChange={(e) => setFormData({ ...formData, base: Number(e.target.value) })} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #dcfce7', outline: 'none' }} />
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#16a34a' }}>Base Salary (₹)</label>
+                                        <input type="number" required value={formData.base} onChange={(e) => setFormData({ ...formData, base: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #dcfce7', background: '#f0fdf4', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#16a34a', marginBottom: '8px', display: 'block' }}>Bonus (₹)</label>
-                                        <input type="number" value={formData.bonus} onChange={(e) => setFormData({ ...formData, bonus: Number(e.target.value) })} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #dcfce7', outline: 'none' }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <label style={{ fontSize: '12px', fontWeight: '700', color: '#2563eb' }}>Bonus (₹)</label>
+                                            {formData.extraDays > 0 && (
+                                                <span style={{ fontSize: '10px', fontWeight: '700', color: '#2563eb', background: '#eff6ff', padding: '2px 6px', borderRadius: '4px' }}>
+                                                    {formData.extraDays} Comp Offs
+                                                </span>
+                                            )}
+                                        </div>
+                                        <input type="number" value={formData.bonus} onChange={(e) => setFormData({ ...formData, bonus: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #bfdbfe', background: '#eff6ff', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#dc2626', marginBottom: '8px', display: 'block' }}>Tax (₹)</label>
-                                        <input type="number" value={formData.tax} onChange={(e) => setFormData({ ...formData, tax: Number(e.target.value) })} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #fee2e2', outline: 'none' }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626' }}>Tax (₹)</label>
+                                        <input type="number" value={formData.tax} onChange={(e) => setFormData({ ...formData, tax: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #fee2e2', background: '#fef2f2', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
-                                    <div>
-                                        <label style={{ fontSize: '11px', fontWeight: '700', color: '#dc2626', marginBottom: '8px', display: 'block' }}>Deductions (₹)</label>
-                                        <input type="number" value={formData.deductions} onChange={(e) => setFormData({ ...formData, deductions: Number(e.target.value) })} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #fee2e2', outline: 'none' }} />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626' }}>Deductions (₹)</label>
+                                        <input type="number" value={formData.deductions} onChange={(e) => setFormData({ ...formData, deductions: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #fee2e2', background: '#fef2f2', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', background: 'var(--primary)', borderRadius: '16px', color: 'white', flexWrap: 'wrap', gap: '16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)', borderRadius: '20px', color: 'white', flexWrap: 'wrap', gap: '20px', boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)' }}>
                                     <div>
-                                        <p style={{ fontSize: '11px', fontWeight: '600', opacity: 0.8, margin: 0 }}>NET PAY</p>
-                                        <h3 style={{ fontSize: '24px', fontWeight: '800', margin: 0 }}>{formatCurrency(formData.base + formData.bonus - formData.tax - formData.deductions)}</h3>
+                                        <p style={{ fontSize: '12px', fontWeight: '600', opacity: 0.9, margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Net Pay</p>
+                                        <h3 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{formatCurrency(formData.base + formData.bonus - formData.tax - formData.deductions)}</h3>
                                     </div>
-                                    <button type="submit" className="btn-primary" style={{ background: 'white', color: 'var(--primary)', padding: '10px 24px', fontSize: '14px', fontWeight: '700' }}>
-                                        Generate Payroll
-                                    </button>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <button type="button" onClick={() => setIsFormOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '12px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
+                                        <button type="submit" className="btn-primary" style={{ background: 'white', color: '#2563eb', padding: '12px 32px', fontSize: '14px', fontWeight: '700', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                            Generate Payroll
+                                        </button>
+                                    </div>
                                 </div>
                             </form>
                         </div>
@@ -459,16 +536,26 @@ const AdminPayroll = () => {
                                         <span style={{ fontWeight: '800', color: 'var(--primary)', fontSize: '16px' }}>₹{(payroll.netPay || 0).toLocaleString()}</span>
                                     </td>
                                     <td style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', textAlign: 'right' }}>
-                                        {payroll.status === 'Pending' ? (
-                                            <button
-                                                onClick={() => handleStatusUpdate(payroll._id, 'Paid')}
-                                                style={{ background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+                                            {payroll.status === 'Pending' ? (
+                                                <button
+                                                    onClick={() => handleStatusUpdate(payroll._id, 'Paid')}
+                                                    style={{ background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}
+                                                >
+                                                    Mark Paid
+                                                </button>
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16a34a', fontWeight: '700', fontSize: '12px' }}>
+                                                    <Check size={18} /> Paid
+                                                </div>
+                                            )}
+                                            <button 
+                                                onClick={() => handleDelete(payroll._id)}
+                                                style={{ padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             >
-                                                Mark Paid
+                                                <Trash2 size={16} />
                                             </button>
-                                        ) : (
-                                            <Check size={20} style={{ color: '#16a34a', marginLeft: 'auto' }} />
-                                        )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -477,6 +564,16 @@ const AdminPayroll = () => {
                 )}
                 </div>
             </div>
+
+            <ConfirmDialog 
+                isOpen={confirmDialog.isOpen}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                type={confirmDialog.type}
+                confirmText={confirmDialog.confirmText}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+            />
         </div>
     );
 };
