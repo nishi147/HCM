@@ -14,12 +14,12 @@ async function run() {
         // Randomize check-in between 09:00:00 and 09:05:59
         const inMin = Math.floor(Math.random() * 6);
         const inSec = Math.floor(Math.random() * 60);
-        const checkIn = new Date(`${todayStr}T09:${inMin.toString().padStart(2, '0')}:${inSec.toString().padStart(2, '0')}.000Z`);
+        const checkIn = new Date(`${todayStr}T09:${inMin.toString().padStart(2, '0')}:${inSec.toString().padStart(2, '0')}+05:30`);
 
         // Randomize check-out between 18:00:00 and 18:15:59
         const outMin = Math.floor(Math.random() * 16);
         const outSec = Math.floor(Math.random() * 60);
-        const checkOut = new Date(`${todayStr}T18:${outMin.toString().padStart(2, '0')}:${outSec.toString().padStart(2, '0')}.000Z`);
+        const checkOut = new Date(`${todayStr}T18:${outMin.toString().padStart(2, '0')}:${outSec.toString().padStart(2, '0')}+05:30`);
 
         await Attendance.findOneAndUpdate(
             { userId: emp._id, date: todayStr },

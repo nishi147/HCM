@@ -36,21 +36,21 @@ async function run() {
                     // Randomize half day work
                     const inMin = Math.floor(Math.random() * 6);
                     const inSec = Math.floor(Math.random() * 60);
-                    checkIn = new Date(`${dateStr}T09:${inMin.toString().padStart(2, '0')}:${inSec.toString().padStart(2, '0')}.000Z`).toISOString();
+                    checkIn = new Date(`${dateStr}T09:${inMin.toString().padStart(2, '0')}:${inSec.toString().padStart(2, '0')}+05:30`).toISOString();
                     
                     const outMin = Math.floor(Math.random() * 10);
                     const outSec = Math.floor(Math.random() * 60);
-                    checkOut = new Date(`${dateStr}T13:${outMin.toString().padStart(2, '0')}:${outSec.toString().padStart(2, '0')}.000Z`).toISOString();
+                    checkOut = new Date(`${dateStr}T13:${outMin.toString().padStart(2, '0')}:${outSec.toString().padStart(2, '0')}+05:30`).toISOString();
                 }
             } else {
                 // Regular Present day
                 const inMin = Math.floor(Math.random() * 10);
                 const inSec = Math.floor(Math.random() * 60);
-                checkIn = new Date(`${dateStr}T09:${inMin.toString().padStart(2, '0')}:${inSec.toString().padStart(2, '0')}.000Z`).toISOString();
+                checkIn = new Date(`${dateStr}T09:${inMin.toString().padStart(2, '0')}:${inSec.toString().padStart(2, '0')}+05:30`).toISOString();
                 
                 const outMin = Math.floor(Math.random() * 30);
                 const outSec = Math.floor(Math.random() * 60);
-                checkOut = new Date(`${dateStr}T18:${outMin.toString().padStart(2, '0')}:${outSec.toString().padStart(2, '0')}.000Z`).toISOString();
+                checkOut = new Date(`${dateStr}T18:${outMin.toString().padStart(2, '0')}:${outSec.toString().padStart(2, '0')}+05:30`).toISOString();
             }
 
             await Attendance.findOneAndUpdate(
