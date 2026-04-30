@@ -73,7 +73,7 @@ const AdminPayroll = () => {
         }
     };
 
-    const calculateAutoDeduction = (userId, mIndex, yr) => {
+    const calculateAutoDeduction = (userId, mIndex, yr, customBase) => {
         if (!userId || mIndex === undefined || !yr) return 0;
 
         const selectedEmp = employees.find(e => e._id === userId);
@@ -110,13 +110,14 @@ const AdminPayroll = () => {
 
         if (unpaidValue > 0) {
             const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-            const deduction = ((selectedEmp.baseSalary || 0) / daysInMonth) * unpaidValue;
+            const currentBase = customBase !== undefined ? customBase : (selectedEmp.baseSalary || 0);
+            const deduction = (currentBase / daysInMonth) * unpaidValue;
             return Math.round(deduction);
         }
         return 0;
     };
 
-    const calculateAutoBonus = (userId, mIndex, yr) => {
+    const calculateAutoBonus = (userId, mIndex, yr, customBase) => {
         if (!userId || mIndex === undefined || !yr) return { bonus: 0, days: 0 };
 
         const selectedEmp = employees.find(e => e._id === userId);
@@ -146,7 +147,8 @@ const AdminPayroll = () => {
 
         if (totalCompOffDays > 0) {
             const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-            const bonus = ((selectedEmp.baseSalary || 0) / daysInMonth) * totalCompOffDays;
+            const currentBase = customBase !== undefined ? customBase : (selectedEmp.baseSalary || 0);
+            const bonus = (currentBase / daysInMonth) * totalCompOffDays;
             return { bonus: Math.round(bonus), days: totalCompOffDays };
         }
         return { bonus: 0, days: 0 };
@@ -168,8 +170,8 @@ const AdminPayroll = () => {
         const newMonth = type === 'month' ? value : formData.month;
         const newYear = type === 'year' ? value : formData.year;
         
-        const ded = calculateAutoDeduction(formData.userId, newMonth, newYear);
-        const { bonus, days } = calculateAutoBonus(formData.userId, newMonth, newYear);
+        const ded = calculateAutoDeduction(formData.userId, newMonth, newYear, formData.base);
+        const { bonus, days } = calculateAutoBonus(formData.userId, newMonth, newYear, formData.base);
 
         setFormData({ 
             ...formData, 
@@ -411,7 +413,12 @@ const AdminPayroll = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <label style={{ fontSize: '12px', fontWeight: '700', color: '#16a34a' }}>Base Salary (₹)</label>
-                                        <input type="number" required value={formData.base} onChange={(e) => setFormData({ ...formData, base: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #dcfce7', background: '#f0fdf4', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
+                                        <input type="number" required value={formData.base} onChange={(e) => {
+                                            const newBase = Number(e.target.value);
+                                            const ded = calculateAutoDeduction(formData.userId, formData.month, formData.year, newBase);
+                                            const { bonus, days } = calculateAutoBonus(formData.userId, formData.month, formData.year, newBase);
+                                            setFormData({ ...formData, base: newBase, deductions: ded, bonus, extraDays: days });
+                                        }} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #dcfce7', background: '#f0fdf4', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
