@@ -117,18 +117,18 @@ const AdminLeave = () => {
     const [employeeFilter, setEmployeeFilter] = useState('All');
 
     const months = [
-        { value: '01', label: 'January' },
-        { value: '02', label: 'February' },
-        { value: '03', label: 'March' },
-        { value: '04', label: 'April' },
+        { value: '01', label: 'Jan' },
+        { value: '02', label: 'Feb' },
+        { value: '03', label: 'Mar' },
+        { value: '04', label: 'Apr' },
         { value: '05', label: 'May' },
-        { value: '06', label: 'June' },
-        { value: '07', label: 'July' },
-        { value: '08', label: 'August' },
-        { value: '09', label: 'September' },
-        { value: '10', label: 'October' },
-        { value: '11', label: 'November' },
-        { value: '12', label: 'December' },
+        { value: '06', label: 'Jun' },
+        { value: '07', label: 'Jul' },
+        { value: '08', label: 'Aug' },
+        { value: '09', label: 'Sep' },
+        { value: '10', label: 'Oct' },
+        { value: '11', label: 'Nov' },
+        { value: '12', label: 'Dec' },
     ];
 
     const uniqueEmployees = [...new Set(leaves.map(leave => leave.userId?.name).filter(Boolean))].sort();

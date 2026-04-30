@@ -101,7 +101,22 @@ const AdminOverview = ({ setActiveTab }) => {
 
         // Calculate present days: Total days in month - (leaves + compOffs)
         Object.keys(summary).forEach(id => {
-            summary[id].present = totalDaysInMonth - summary[id].leave - summary[id].compOff;
+            const emp = employees.find(e => e._id === id);
+            let baseDays = totalDaysInMonth;
+            
+            if (emp && emp.doj) {
+                const dojDate = new Date(emp.doj);
+                const endOfMonth = new Date(year, month, 0);
+
+                if (dojDate > endOfMonth) {
+                    baseDays = 0; // Joined after this month
+                } else if (dojDate.getFullYear() === year && dojDate.getMonth() === month - 1) {
+                    // Joined in this month
+                    baseDays = endOfMonth.getDate() - dojDate.getDate() + 1;
+                }
+            }
+            
+            summary[id].present = Math.max(0, baseDays - summary[id].leave - summary[id].compOff);
         });
         
         return Object.values(summary).sort((a, b) => a.name.localeCompare(b.name));
