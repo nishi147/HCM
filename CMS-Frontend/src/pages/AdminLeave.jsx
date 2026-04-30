@@ -107,29 +107,16 @@ const LeaveTable = ({ data, handleStatusUpdate, calculateDuration, getStatusStyl
     );
 };
 
+
+
 const AdminLeave = () => {
     const [leaves, setLeaves] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [typeFilter, setTypeFilter] = useState('All');
-    const [monthFilter, setMonthFilter] = useState('All');
+    const [filterDate, setFilterDate] = useState('');
     const [employeeFilter, setEmployeeFilter] = useState('All');
-
-    const months = [
-        { value: '01', label: 'Jan' },
-        { value: '02', label: 'Feb' },
-        { value: '03', label: 'Mar' },
-        { value: '04', label: 'Apr' },
-        { value: '05', label: 'May' },
-        { value: '06', label: 'Jun' },
-        { value: '07', label: 'Jul' },
-        { value: '08', label: 'Aug' },
-        { value: '09', label: 'Sep' },
-        { value: '10', label: 'Oct' },
-        { value: '11', label: 'Nov' },
-        { value: '12', label: 'Dec' },
-    ];
 
     const uniqueEmployees = [...new Set(leaves.map(leave => leave.userId?.name).filter(Boolean))].sort();
 
@@ -191,14 +178,13 @@ const AdminLeave = () => {
         const matchesStatus = statusFilter === 'All' || leave.status === statusFilter;
         const matchesType = typeFilter === 'All' || leave.type === typeFilter;
         
-        // Month filter logic
-        const leaveMonth = leave.startDate ? leave.startDate.split('-')[1] : null;
-        const matchesMonth = monthFilter === 'All' || leaveMonth === monthFilter;
+        // Date filter logic
+        const matchesDate = !filterDate || (filterDate >= leave.startDate && filterDate <= leave.endDate) || leave.startDate === filterDate;
         
         // Employee filter logic
         const matchesEmployee = employeeFilter === 'All' || leave.userId?.name === employeeFilter;
 
-        return matchesSearch && matchesStatus && matchesType && matchesMonth && matchesEmployee;
+        return matchesSearch && matchesStatus && matchesType && matchesDate && matchesEmployee;
     });
 
     const leaveRequests = filteredLeaves.filter(leave => leave.type !== 'Comp Off');
@@ -211,19 +197,23 @@ const AdminLeave = () => {
                 <h1 style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Leave Management</h1>
                 
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '4px 12px' }}>
                         <Calendar size={16} color="var(--text-muted)" />
-                        <select 
-                            value={monthFilter} 
-                            onChange={(e) => setMonthFilter(e.target.value)}
-                            style={{ border: 'none', background: 'transparent', padding: '10px 0', color: 'var(--text-main)', outline: 'none', cursor: 'pointer', fontSize: '14px' }}
-                        >
-                            <option value="All">All Months</option>
-                            {months.map(m => (
-                                <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                        </select>
+                        <input
+                            type="date"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', padding: '8px 0', color: 'var(--text-main)', fontSize: '13px', outline: 'none' }}
+                        />
                     </div>
+                    {filterDate && (
+                        <button 
+                            onClick={() => setFilterDate('')}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                        >
+                            Clear
+                        </button>
+                    )}
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '12px', padding: '0 12px' }}>
                         <User size={16} color="var(--text-muted)" />

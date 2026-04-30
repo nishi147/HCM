@@ -8,6 +8,7 @@ const AdminAttendance = () => {
     const [attendanceData, setAttendanceData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterDate, setFilterDate] = useState('');
     const { token } = useAuth();
     
 
@@ -28,25 +29,49 @@ const AdminAttendance = () => {
         }
     };
 
-    const filteredAttendance = attendanceData.filter(record =>
-        record.userId?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.userId?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.date.includes(searchTerm)
-    );
+    const filteredAttendance = attendanceData.filter(record => {
+        const matchesSearch = (record.userId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (record.userId?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (record.date || '').includes(searchTerm);
+        
+        const matchesDate = !filterDate || record.date === filterDate;
+
+        return matchesSearch && matchesDate;
+    });
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', flex: 1, minHeight: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>Attendance Records</h1>
-                <div className="card" style={{ display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '10px', width: '360px' }}>
-                    <Search size={18} color="var(--text-muted)" />
-                    <input
-                        type="text"
-                        placeholder="Search by name, email or date..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{ border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-main)', width: '100%', outline: 'none', fontSize: '14px' }}
-                    />
+                
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', padding: '4px 12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                        <Calendar size={16} color="var(--text-muted)" />
+                        <input
+                            type="date"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', padding: '8px 0', color: 'var(--text-main)', fontSize: '13px', outline: 'none' }}
+                        />
+                    </div>
+                    {filterDate && (
+                        <button 
+                            onClick={() => setFilterDate('')}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--primary)', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                        >
+                            Clear
+                        </button>
+                    )}
+                    <div className="card" style={{ display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '10px', width: '300px' }}>
+                        <Search size={18} color="var(--text-muted)" />
+                        <input
+                            type="text"
+                            placeholder="Search by name, email or date..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ border: 'none', background: 'transparent', padding: '12px', color: 'var(--text-main)', width: '100%', outline: 'none', fontSize: '14px' }}
+                        />
+                    </div>
                 </div>
             </div>
 
