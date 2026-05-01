@@ -793,16 +793,8 @@ const LeaveView = ({ leaves, fetchDashboardData }) => {
     const { token, user } = useAuth();
     
 
-    // Summary calculations with dynamic accrual based on DOJ (2 days per month)
-    const getAccruedLeave = () => {
-        if (!user?.createdAt) return 0;
-        const createdDate = new Date(user.createdAt);
-        const now = new Date();
-        const months = (now.getFullYear() - createdDate.getFullYear()) * 12 + (now.getMonth() - createdDate.getMonth());
-        return Math.max(0, months * 2);
-    };
-
-    const accruedPaidLeave = getAccruedLeave();
+    // Exactly 2 leaves per month, non-cumulative (expires end of month)
+    const accruedPaidLeave = 2;
 
     const calculateDuration = (start, end, dayType = 'Full Day') => {
         if (!start || !end) return 0;
@@ -814,8 +806,16 @@ const LeaveView = ({ leaves, fetchDashboardData }) => {
         return dayType === 'Half Day' ? diff * 0.5 : diff;
     };
 
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
     const rawPaidLeavesUsed = leaves
-        .filter(l => l.type === 'Paid Leave' && l.status === 'Approved')
+        .filter(l => {
+            if (l.type !== 'Paid Leave' || l.status !== 'Approved') return false;
+            const leaveDate = new Date(l.startDate);
+            return leaveDate.getMonth() === currentMonth && leaveDate.getFullYear() === currentYear;
+        })
         .reduce((sum, l) => sum + calculateDuration(l.startDate, l.endDate, l.dayType), 0);
 
     const paidLeavesUsedDisplay = Math.min(rawPaidLeavesUsed, accruedPaidLeave);
