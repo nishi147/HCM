@@ -12,8 +12,27 @@ const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR',
-        maximumFractionDigits: 0
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
     }).format(amount);
+};
+
+const numberToWords = (num) => {
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const convert = (n) => {
+        if (n < 20) return a[n];
+        if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+        if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convert(n % 100) : '');
+        if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convert(n % 1000) : '');
+        if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convert(n % 100000) : '');
+        return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convert(n % 10000000) : '');
+    };
+
+    if (num === 0) return 'Zero';
+    const whole = Math.floor(num);
+    return convert(whole) + ' Only';
 };
 
 // Mock/Simple views for now, can be expanded or moved to separate files
@@ -1093,23 +1112,52 @@ const PaySlipModal = ({ payroll, user, onClose }) => {
                     <title>PaySlip_${payroll.month}_${user.name}</title>
                     <style>
                         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-                        body { font-family: 'Outfit', sans-serif; padding: 40px; color: #1e293b; }
-                        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
-                        .logo-section h1 { margin: 0; color: #2563eb; }
-                        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-                        .detail-item { margin-bottom: 12px; }
-                        .detail-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-                        .detail-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-                        th { text-align: left; background: #f8fafc; padding: 12px; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
-                        td { padding: 12px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
-                        .net-pay { background: #2563eb; color: white; padding: 24px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
-                        .net-pay h2 { margin: 0; }
-                        @media print { .no-print { display: none; } }
+                        body { font-family: 'Outfit', sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
+                        * { box-sizing: border-box; }
+                        .payslip-container { max-width: 900px; margin: 0 auto; background: white; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; }
+                        .company-info { display: flex; align-items: center; gap: 15px; }
+                        .company-name { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
+                        .company-address { font-size: 14px; color: #64748b; margin: 2px 0 0 0; }
+                        .payslip-title-box { text-align: right; }
+                        .payslip-title { font-size: 14px; color: #64748b; font-weight: 600; margin: 0; }
+                        .payslip-month { font-size: 22px; font-weight: 800; color: #0f172a; margin: 5px 0 0 0; }
+                        .summary-section { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; margin-bottom: 30px; }
+                        .section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 20px; }
+                        .summary-grid { display: grid; grid-template-columns: 150px 1fr; gap: 12px; }
+                        .summary-label { font-size: 14px; color: #64748b; }
+                        .summary-value { font-size: 14px; font-weight: 600; color: #1e293b; }
+                        .net-pay-card { background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 24px; position: relative; overflow: hidden; }
+                        .net-pay-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #22c55e; }
+                        .net-pay-label { font-size: 12px; font-weight: 700; color: #15803d; text-transform: uppercase; margin-bottom: 10px; }
+                        .net-pay-amount { font-size: 32px; font-weight: 800; color: #166534; margin: 0; }
+                        .net-pay-sub { font-size: 13px; color: #15803d; margin-top: 4px; opacity: 0.8; }
+                        .days-info { margin-top: 20px; padding-top: 15px; border-top: 1px dashed #dcfce7; }
+                        .day-item { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
+                        .day-label { color: #64748b; }
+                        .day-value { font-weight: 700; color: #1e293b; }
+                        .earnings-deductions-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px; }
+                        .table-column { padding: 20px; }
+                        .table-column:first-child { border-right: 1px solid #e2e8f0; }
+                        .column-header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 15px; }
+                        .row-item { display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; }
+                        .row-label { color: #1e293b; }
+                        .row-value { font-weight: 600; color: #1e293b; }
+                        .total-net-section { background: #f0fdf4; border-radius: 12px; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+                        .total-net-info h4 { font-size: 16px; font-weight: 800; color: #0f172a; margin: 0; }
+                        .total-net-info p { font-size: 12px; color: #64748b; margin: 4px 0 0 0; }
+                        .total-net-val { font-size: 20px; font-weight: 800; color: #0f172a; }
+                        .words-section { text-align: right; margin-bottom: 30px; font-size: 14px; }
+                        .words-label { color: #64748b; }
+                        .words-value { font-weight: 700; color: #1e293b; }
+                        .system-note { font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; text-align: center; }
+                        @media print { .no-print { display: none; } .payslip-container { border: none; padding: 0; } }
                     </style>
                 </head>
                 <body>
-                    ${printContent}
+                    <div class="payslip-container">
+                        ${printContent}
+                    </div>
                     <script>window.print(); setTimeout(() => window.close(), 500);</script>
                 </body>
             </html>
@@ -1117,100 +1165,136 @@ const PaySlipModal = ({ payroll, user, onClose }) => {
         printWindow.document.close();
     };
 
+    // Calculation logic for days
+    const monthYear = payroll.month.split(' ');
+    const daysInMonth = monthYear.length === 2 ? new Date(monthYear[1], ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(monthYear[0]) + 1, 0).getDate() : 30;
+    
+    // Estimate LOP Days based on deductions
+    const dailyRate = payroll.base / daysInMonth;
+    const lopDays = Math.max(0, Math.round((payroll.deductions || 0) / dailyRate));
+    const paidDays = daysInMonth - lopDays;
+
     return (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card" style={{ width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
-                <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
-                    <h3 style={{ margin: 0 }}>Payslip for {payroll.month}</h3>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card" style={{ width: '100%', maxWidth: '900px', maxHeight: '95vh', overflowY: 'auto', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
+                <div className="no-print" style={{ padding: '20px 32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                            <FileText size={20} />
+                        </div>
+                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>Payslip Statement</h3>
+                    </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
-                        <button onClick={handlePrint} className="btn-primary" style={{ padding: '8px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <button onClick={handlePrint} className="btn-primary" style={{ padding: '10px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700' }}>
                             <Printer size={16} /> Print / Save PDF
                         </button>
-                        <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' }}>Close</button>
+                        <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', color: '#64748b', fontSize: '14px' }}>Close</button>
                     </div>
                 </div>
 
                 <div id="printable-payslip" style={{ padding: '40px' }}>
-                    <div className="header" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #f1f5f9', paddingBottom: '20px', marginBottom: '32px' }}>
-                        <div className="logo-section">
-                            <h1 style={{ margin: 0, color: 'var(--primary)', fontSize: '24px', fontWeight: '800' }}>HCM CLOUD</h1>
-                            <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>Payslip Statement</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <img src={manshuLogo} alt="Logo" style={{ height: '60px', width: 'auto' }} />
+                            <div>
+                                <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a' }}>Manshu Learning</h1>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: '#64748b' }}>India 500000 India</p>
+                            </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '700' }}>MONTH & YEAR</p>
-                            <p style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>{payroll.month}</p>
+                            <p style={{ margin: 0, fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Payslip For the Month</p>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>{payroll.month}</p>
                         </div>
                     </div>
 
-                    <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '40px', marginBottom: '40px' }}>
-                        <div>
-                            <div className="detail-item">
-                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Employee Name</div>
-                                <div className="detail-value" style={{ fontSize: '16px', fontWeight: '700' }}>{user.name}</div>
-                            </div>
-                            <div className="detail-item" style={{ marginTop: '16px' }}>
-                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Email Address</div>
-                                <div className="detail-value" style={{ fontSize: '14px', color: '#64748b' }}>{user.email}</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', marginBottom: '32px' }}>
+                        <div style={{ flex: '1.2', minWidth: '300px' }}>
+                            <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px' }}>Employee Summary</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '16px' }}>
+                                <span style={{ fontSize: '14px', color: '#64748b' }}>Employee Name</span>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {user.name}</span>
+                                <span style={{ fontSize: '14px', color: '#64748b' }}>Employee ID</span>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {user.employeeId || '1234'}</span>
+                                <span style={{ fontSize: '14px', color: '#64748b' }}>Pay Period</span>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {payroll.month}</span>
+                                <span style={{ fontSize: '14px', color: '#64748b' }}>Pay Date</span>
+                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {new Date(payroll.paymentDate || payroll.createdAt || new Date()).toLocaleDateString('en-GB')}</span>
                             </div>
                         </div>
-                        <div>
-                            <div className="detail-item">
-                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Payment Status</div>
-                                <div className="detail-value" style={{ fontSize: '14px', fontWeight: '800', color: payroll.status === 'Paid' ? '#16a34a' : '#f59e0b' }}>{payroll.status.toUpperCase()}</div>
-                            </div>
-                            <div className="detail-item" style={{ marginTop: '16px' }}>
-                                <div className="detail-label" style={{ fontSize: '10px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase' }}>Payment Date</div>
-                                <div className="detail-value" style={{ fontSize: '14px', color: '#64748b' }}>{payroll.paymentDate ? new Date(payroll.paymentDate).toLocaleDateString() : 'N/A'}</div>
+
+                        <div style={{ flex: '0.8', minWidth: '300px', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: '20px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', background: '#22c55e' }}></div>
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase' }}>Total Net Pay</span>
+                            <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#166534', margin: '8px 0' }}>{formatCurrency(payroll.netPay)}</h2>
+                            <span style={{ fontSize: '13px', color: '#15803d', opacity: 0.8, fontWeight: '600' }}>Total Net Pay</span>
+                            
+                            <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px dashed #dcfce7' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                                    <span style={{ fontSize: '14px', color: '#64748b' }}>Paid Days</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {paidDays}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                                    <span style={{ fontSize: '14px', color: '#64748b' }}>LOP Days</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {lopDays}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '32px' }}>
-                        <thead>
-                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                <th style={{ padding: '12px', textAlign: 'left', fontSize: '11px', fontWeight: '800' }}>DESCRIPTION</th>
-                                <th style={{ padding: '12px', textAlign: 'right', fontSize: '11px', fontWeight: '800' }}>AMOUNT</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Standard Base Salary</td>
-                                <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px' }}>{formatCurrency(payroll.base)}</td>
-                            </tr>
-                            {payroll.bonus > 0 && (
-                                <tr>
-                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Incentives & Bonuses (Extra {payroll.extraDays} days)</td>
-                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#16a34a' }}>+ {formatCurrency(payroll.bonus)}</td>
-                                </tr>
-                            )}
-                            {payroll.tax > 0 && (
-                                <tr>
-                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Income Tax Deductions</td>
-                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#dc2626' }}>- {formatCurrency(payroll.tax)}</td>
-                                </tr>
-                            )}
-                            {payroll.deductions > 0 && (
-                                <tr>
-                                    <td style={{ padding: '12px', fontSize: '14px', fontWeight: '600' }}>Other Deductions / Unpaid Leave</td>
-                                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#dc2626' }}>- {formatCurrency(payroll.deductions)}</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-
-                    <div style={{ background: 'var(--primary)', color: 'white', padding: '32px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', opacity: 0.8, textTransform: 'uppercase' }}>Net Payable Amount</p>
-                            <h2 style={{ margin: '8px 0 0 0', fontSize: '32px', fontWeight: '800' }}>{formatCurrency(payroll.netPay)}</h2>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', border: '1px solid #f1f5f9', borderRadius: '16px', overflow: 'hidden', marginBottom: '32px' }}>
+                        <div style={{ flex: '1', minWidth: '300px', padding: '24px', borderRight: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Earnings</span>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Amount</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                                <span style={{ color: '#1e293b' }}>Basic</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.base)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                                <span style={{ color: '#1e293b' }}>House Rent Allowance</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '12px 0', borderTop: '1px solid #f1f5f9', marginTop: '8px' }}>
+                                <span style={{ fontWeight: '700', color: '#1e293b' }}>Gross Earnings</span>
+                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{formatCurrency(payroll.base + (payroll.bonus || 0))}</span>
+                            </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                            <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>Total Earnings: {formatCurrency(payroll.base + payroll.bonus)}</p>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.8 }}>Total Deductions: {formatCurrency(payroll.tax + payroll.deductions)}</p>
+                        <div style={{ flex: '1', minWidth: '300px', padding: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Deductions</span>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Amount</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                                <span style={{ color: '#1e293b' }}>Income Tax</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.tax || 0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                                <span style={{ color: '#1e293b' }}>Provident Fund</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '12px 0', borderTop: '1px solid #f1f5f9', marginTop: '8px' }}>
+                                <span style={{ fontWeight: '700', color: '#1e293b' }}>Total Deductions</span>
+                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{formatCurrency((payroll.tax || 0) + (payroll.deductions || 0))}</span>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
-                        <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>This is a computer generated document and does not require a signature.</p>
+
+                    <div style={{ background: '#f0fdf4', borderRadius: '12px', padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                        <div>
+                            <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>TOTAL NET PAYABLE</h4>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Gross Earnings - Total Deductions</p>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{formatCurrency(payroll.netPay)}</div>
+                    </div>
+
+                    <div style={{ textAlign: 'right', marginBottom: '30px' }}>
+                        <span style={{ fontSize: '14px', color: '#64748b' }}>Amount In Words : </span>
+                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>Indian Rupee {numberToWords(payroll.netPay)}</span>
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '20px', textAlign: 'center' }}>
+                        -- This is a system-generated document. --
                     </div>
                 </div>
             </motion.div>
