@@ -21,7 +21,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: [process.env.FRONTEND_URL || 'https://hcm-8e7v.vercel.app', process.env.FRONTEND_URL_LOCAL || 'http://localhost:5173'],
+    origin: [process.env.FRONTEND_URL || 'https://hcm-8e7v.vercel.app'],
     credentials: true
 }));
 
