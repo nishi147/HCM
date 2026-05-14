@@ -1241,6 +1241,14 @@ const FinanceReports = ({ stats }) => {
 };
 
 const FinanceSettings = ({ companyInfo, setCompanyInfo }) => {
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = () => {
+        localStorage.setItem('manshu_finance_company_info', JSON.stringify(companyInfo));
+        setIsSaving(true);
+        setTimeout(() => setIsSaving(false), 2000);
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1294,8 +1302,8 @@ const FinanceSettings = ({ companyInfo, setCompanyInfo }) => {
                 </div>
 
                 <div style={{ marginTop: '40px', paddingTop: '32px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button className="btn-primary" style={{ padding: '14px 40px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)' }}>
-                        <CheckCircle size={20} /> Save Business Profile
+                    <button onClick={handleSave} className="btn-primary" style={{ padding: '14px 40px', borderRadius: '12px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)' }}>
+                        <CheckCircle size={20} /> {isSaving ? 'Saved Successfully!' : 'Save Business Profile'}
                     </button>
                 </div>
             </div>
@@ -1307,12 +1315,16 @@ const FinanceSettings = ({ companyInfo, setCompanyInfo }) => {
 
 const AdminFinance = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
-    const [companyInfo, setCompanyInfo] = useState({
-        name: 'Manshu Learning Pvt. Ltd.',
-        email: 'contact@manshulearning.com',
-        phone: '+91 98765 43210',
-        address: '123 EdTech Valley, Tech Park, Bangalore, KA 560001',
-        gstin: '29ABCDE1234F1Z5'
+    const [companyInfo, setCompanyInfo] = useState(() => {
+        const saved = localStorage.getItem('manshu_finance_company_info');
+        if (saved) return JSON.parse(saved);
+        return {
+            name: 'Manshu Learning Pvt. Ltd.',
+            email: 'contact@manshulearning.com',
+            phone: '+91 98765 43210',
+            address: '123 EdTech Valley, Tech Park, Bangalore, KA 560001',
+            gstin: '29ABCDE1234F1Z5'
+        };
     });
 
     const { token } = useAuth();
