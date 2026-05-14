@@ -18,6 +18,10 @@ const payrollSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
+    houseRentAllowance: {
+        type: Number,
+        default: 0
+    },
     extraDays: {
         type: Number,
         default: 0
@@ -27,6 +31,10 @@ const payrollSchema = new mongoose.Schema({
         default: 0
     },
     deductions: {
+        type: Number,
+        default: 0
+    },
+    providentFund: {
         type: Number,
         default: 0
     },

@@ -10,6 +10,7 @@ import AdminLeave from './AdminLeave';
 import AdminHoliday from './AdminHoliday';
 import AdminPayroll from './AdminPayroll';
 import AdminProjects from './AdminProjects';
+import AdminFinance from './AdminFinance';
 import Settings from './Settings';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,6 +27,7 @@ const AdminDashboard = () => {
             case 'holidays': return <AdminHoliday />;
             case 'payroll': return <AdminPayroll />;
             case 'projects': return <AdminProjects />;
+            case 'finance': return <AdminFinance />;
             case 'settings': return <Settings />;
             default: return (
                 <div className="card" style={{ padding: '60px', textAlign: 'center', background: 'var(--bg-main)' }}>

@@ -22,9 +22,11 @@ const AdminPayroll = () => {
         year: new Date().getFullYear(),
         base: 0,
         bonus: 0,
+        houseRentAllowance: 0,
         extraDays: 0,
         tax: 0,
-        deductions: 0
+        deductions: 0,
+        providentFund: 0
     });
 
     const { token } = useAuth();
@@ -234,9 +236,11 @@ const AdminPayroll = () => {
                 year: new Date().getFullYear(),
                 base: 0,
                 bonus: 0,
+                houseRentAllowance: 0,
                 extraDays: 0,
                 tax: 0,
-                deductions: 0
+                deductions: 0,
+                providentFund: 0
             });
             fetchData();
         } catch (err) {
@@ -432,19 +436,27 @@ const AdminPayroll = () => {
                                         <input type="number" value={formData.bonus} onChange={(e) => setFormData({ ...formData, bonus: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #bfdbfe', background: '#eff6ff', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#2563eb' }}>House Rent Allowance (₹)</label>
+                                        <input type="number" value={formData.houseRentAllowance} onChange={(e) => setFormData({ ...formData, houseRentAllowance: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #bfdbfe', background: '#eff6ff', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         <label style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626' }}>Tax (₹)</label>
                                         <input type="number" value={formData.tax} onChange={(e) => setFormData({ ...formData, tax: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #fee2e2', background: '#fef2f2', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626' }}>Deductions (₹)</label>
+                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626' }}>Deductions / LOP (₹)</label>
                                         <input type="number" value={formData.deductions} onChange={(e) => setFormData({ ...formData, deductions: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #fee2e2', background: '#fef2f2', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626' }}>Provident Fund (₹)</label>
+                                        <input type="number" value={formData.providentFund} onChange={(e) => setFormData({ ...formData, providentFund: Number(e.target.value) })} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #fee2e2', background: '#fef2f2', outline: 'none', fontSize: '15px', fontWeight: '600' }} />
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)', borderRadius: '20px', color: 'white', flexWrap: 'wrap', gap: '20px', boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)' }}>
                                     <div>
                                         <p style={{ fontSize: '12px', fontWeight: '600', opacity: 0.9, margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Net Pay</p>
-                                        <h3 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{formatCurrency(formData.base + formData.bonus - formData.tax - formData.deductions)}</h3>
+                                        <h3 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{formatCurrency(formData.base + formData.bonus + formData.houseRentAllowance - formData.tax - formData.deductions - formData.providentFund)}</h3>
                                     </div>
                                     <div style={{ display: 'flex', gap: '12px' }}>
                                         <button type="button" onClick={() => setIsFormOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '12px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>

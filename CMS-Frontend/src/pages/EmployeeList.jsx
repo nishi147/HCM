@@ -33,6 +33,7 @@ const EmployeeList = () => {
     });
 
     const [formData, setFormData] = useState({
+        employeeId: '',
         name: '',
         email: '',
         role: 'employee',
@@ -168,6 +169,7 @@ const EmployeeList = () => {
         if (employee) {
             setCurrentEmployee(employee);
             setFormData({
+                employeeId: employee.employeeId || '',
                 name: employee.name,
                 email: employee.email,
                 role: employee.role,
@@ -182,6 +184,7 @@ const EmployeeList = () => {
         } else {
             setCurrentEmployee(null);
             setFormData({
+                employeeId: '',
                 name: '',
                 email: '',
                 role: 'employee',
@@ -279,6 +282,7 @@ const EmployeeList = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '900px' }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                             <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+                                <th style={{ padding: '16px 24px', fontWeight: '600', color: 'var(--text-main)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Employee ID</th>
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: 'var(--text-main)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Employee</th>
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: 'var(--text-main)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Department</th>
                                 <th style={{ padding: '16px 24px', fontWeight: '600', color: 'var(--text-main)', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Position</th>
@@ -292,6 +296,7 @@ const EmployeeList = () => {
                         <tbody>
                             {filteredEmployees.map((emp) => (
                                 <tr key={emp._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
+                                    <td style={{ padding: '16px 24px', color: 'var(--text-muted)', fontSize: '14px', fontWeight: '600' }}>{emp.employeeId || '--'}</td>
                                     <td style={{ padding: '16px 24px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', color: 'var(--primary)', fontSize: '12px' }}>
@@ -365,6 +370,18 @@ const EmployeeList = () => {
                             )}
 
                             <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>
+                                        Employee ID
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.employeeId}
+                                        onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+                                        style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)', outline: 'none', fontSize: '14px', background: 'var(--bg-main)' }}
+                                        placeholder="E.g., EMP123"
+                                    />
+                                </div>
                                 <div style={{ gridColumn: 'span 2' }}>
                                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-main)' }}>
                                         <UserIcon size={14} /> Full Name

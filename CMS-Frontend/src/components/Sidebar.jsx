@@ -13,7 +13,8 @@ import {
     Briefcase,
     X,
     ClipboardCheck,
-    KeyRound
+    KeyRound,
+    Wallet
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -49,6 +50,7 @@ const Sidebar = ({ activeTab, setActiveTab, onClose }) => {
         { id: 'holidays', label: 'Holidays', icon: Gift },
         { id: 'projects', label: 'Manage Projects', icon: Briefcase },
         { id: 'payroll', label: 'Payroll', icon: DollarSign },
+        { id: 'finance', label: 'Finance', icon: Wallet },
         { id: 'settings', label: 'Settings', icon: KeyRound },
         { id: 'templates', label: 'Templates', icon: FileText, isExternal: true, url: templateUrl },
     ] : [

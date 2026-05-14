@@ -12,6 +12,7 @@ const holidayRoutes = require('./routes/holidayRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const settingRoutes = require('./routes/settingRoutes');
+const financeRoutes = require('./routes/financeRoutes');
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: [process.env.FRONTEND_URL || 'https://hcm-8e7v.vercel.app'],
+    origin: [process.env.FRONTEND_URL || 'https://hcm-8e7v.vercel.app', process.env.FRONTEND_URL_LOCAL || 'http://localhost:5173'],
     credentials: true
 }));
 
@@ -37,6 +38,7 @@ app.use('/api/holidays', holidayRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/finance', financeRoutes);
 
 app.get('/', (req, res) => {
     res.send('CMS Backend API is running...');

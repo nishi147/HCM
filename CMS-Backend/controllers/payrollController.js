@@ -5,7 +5,7 @@ const Holiday = require('../models/Holiday');
 // Create payroll entry
 const createPayroll = async (req, res) => {
     try {
-        const { userId, month, base, bonus: clientBonus, tax, deductions: clientDeductions, extraDays } = req.body;
+        const { userId, month, base, bonus: clientBonus, houseRentAllowance: clientHRA, tax, deductions: clientDeductions, providentFund: clientPF, extraDays } = req.body;
 
         // Backend Calculation Logic for Unpaid Leave Deductions
         // 1. Parse Month & Year (expecting "Month YYYY")
@@ -78,16 +78,20 @@ const createPayroll = async (req, res) => {
             }
         }
 
-        const netPay = Number(base) + finalBonus - Number(tax) - finalDeductions;
+        const finalHRA = Number(clientHRA) || 0;
+        const finalPF = Number(clientPF) || 0;
+        const netPay = Number(base) + finalBonus + finalHRA - Number(tax) - finalDeductions - finalPF;
 
         const payroll = new Payroll({
             userId,
             month,
             base: Number(base),
             bonus: finalBonus,
+            houseRentAllowance: finalHRA,
             extraDays: Number(extraDays) || 0,
             tax: Number(tax),
             deductions: finalDeductions,
+            providentFund: finalPF,
             netPay,
             status: 'Pending'
         });
@@ -102,7 +106,7 @@ const createPayroll = async (req, res) => {
 // Get all payrolls
 const getAllPayroll = async (req, res) => {
     try {
-        const payrolls = await Payroll.find().populate('userId', 'name email').sort({ createdAt: -1 });
+        const payrolls = await Payroll.find().populate('userId', 'name email employeeId').sort({ createdAt: -1 });
         res.json(payrolls);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -131,7 +135,7 @@ const updatePayrollStatus = async (req, res) => {
 // Get employee's own payroll
 const getMyPayroll = async (req, res) => {
     try {
-        const payrolls = await Payroll.find({ userId: req.user.id }).sort({ createdAt: -1 });
+        const payrolls = await Payroll.find({ userId: req.user.id }).populate('userId', 'name email employeeId').sort({ createdAt: -1 });
         res.json(payrolls);
     } catch (error) {
         res.status(500).json({ message: error.message });

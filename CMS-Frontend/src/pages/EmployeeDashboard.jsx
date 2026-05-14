@@ -1,6 +1,7 @@
 import API_URL from '../utils/api';
 import manshuLogo from '../assets/manshu_logo.png';
 import { useState, useEffect, useCallback } from 'react';
+import html2pdf from 'html2pdf.js';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -1102,67 +1103,17 @@ const LeaveView = ({ leaves, fetchDashboardData }) => {
 };
 
 
-const PaySlipModal = ({ payroll, user, onClose }) => {
+const PaySlipModal = ({ payroll, user, dynamicEmployeeId, onClose }) => {
     const handlePrint = () => {
-        const printContent = document.getElementById('printable-payslip').innerHTML;
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>PaySlip_${payroll.month}_${user.name}</title>
-                    <style>
-                        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-                        body { font-family: 'Outfit', sans-serif; padding: 40px; color: #1e293b; line-height: 1.5; }
-                        * { box-sizing: border-box; }
-                        .payslip-container { max-width: 900px; margin: 0 auto; background: white; }
-                        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0; }
-                        .company-info { display: flex; align-items: center; gap: 15px; }
-                        .company-name { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
-                        .company-address { font-size: 14px; color: #64748b; margin: 2px 0 0 0; }
-                        .payslip-title-box { text-align: right; }
-                        .payslip-title { font-size: 14px; color: #64748b; font-weight: 600; margin: 0; }
-                        .payslip-month { font-size: 22px; font-weight: 800; color: #0f172a; margin: 5px 0 0 0; }
-                        .summary-section { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 30px; margin-bottom: 30px; }
-                        .section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 20px; }
-                        .summary-grid { display: grid; grid-template-columns: 150px 1fr; gap: 12px; }
-                        .summary-label { font-size: 14px; color: #64748b; }
-                        .summary-value { font-size: 14px; font-weight: 600; color: #1e293b; }
-                        .net-pay-card { background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 16px; padding: 24px; position: relative; overflow: hidden; }
-                        .net-pay-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #22c55e; }
-                        .net-pay-label { font-size: 12px; font-weight: 700; color: #15803d; text-transform: uppercase; margin-bottom: 10px; }
-                        .net-pay-amount { font-size: 32px; font-weight: 800; color: #166534; margin: 0; }
-                        .net-pay-sub { font-size: 13px; color: #15803d; margin-top: 4px; opacity: 0.8; }
-                        .days-info { margin-top: 20px; padding-top: 15px; border-top: 1px dashed #dcfce7; }
-                        .day-item { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
-                        .day-label { color: #64748b; }
-                        .day-value { font-weight: 700; color: #1e293b; }
-                        .earnings-deductions-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 30px; }
-                        .table-column { padding: 20px; }
-                        .table-column:first-child { border-right: 1px solid #e2e8f0; }
-                        .column-header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 15px; }
-                        .row-item { display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; }
-                        .row-label { color: #1e293b; }
-                        .row-value { font-weight: 600; color: #1e293b; }
-                        .total-net-section { background: #f0fdf4; border-radius: 12px; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-                        .total-net-info h4 { font-size: 16px; font-weight: 800; color: #0f172a; margin: 0; }
-                        .total-net-info p { font-size: 12px; color: #64748b; margin: 4px 0 0 0; }
-                        .total-net-val { font-size: 20px; font-weight: 800; color: #0f172a; }
-                        .words-section { text-align: right; margin-bottom: 30px; font-size: 14px; }
-                        .words-label { color: #64748b; }
-                        .words-value { font-weight: 700; color: #1e293b; }
-                        .system-note { font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; text-align: center; }
-                        @media print { .no-print { display: none; } .payslip-container { border: none; padding: 0; } }
-                    </style>
-                </head>
-                <body>
-                    <div class="payslip-container">
-                        ${printContent}
-                    </div>
-                    <script>window.print(); setTimeout(() => window.close(), 500);</script>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
+        const element = document.getElementById('printable-payslip');
+        const opt = {
+            margin:       10,
+            filename:     `PaySlip_${payroll.month}_${user.name}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: [210, 350], orientation: 'portrait' }
+        };
+        html2pdf().from(element).set(opt).save();
     };
 
     // Calculation logic for days
@@ -1175,125 +1126,133 @@ const PaySlipModal = ({ payroll, user, onClose }) => {
     const paidDays = daysInMonth - lopDays;
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card" style={{ width: '100%', maxWidth: '900px', maxHeight: '95vh', overflowY: 'auto', background: 'white', borderRadius: '24px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
-                <div className="no-print" style={{ padding: '20px 32px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-                            <FileText size={20} />
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card" style={{ width: '100%', maxWidth: '900px', maxHeight: '98vh', overflowY: 'auto', background: 'white', borderRadius: '16px', boxShadow: '0 25px 50px rgba(0,0,0,0.2)' }}>
+                <div className="no-print" style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: 'white', zIndex: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
+                            <FileText size={16} />
                         </div>
-                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>Payslip Statement</h3>
+                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800' }}>Payslip Statement</h3>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button onClick={handlePrint} className="btn-primary" style={{ padding: '10px 24px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700' }}>
-                            <Printer size={16} /> Print / Save PDF
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={handlePrint} className="btn-primary" style={{ padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700' }}>
+                            <Printer size={14} /> Download PDF
                         </button>
-                        <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', color: '#64748b', fontSize: '14px' }}>Close</button>
+                        <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', color: '#64748b', fontSize: '12px' }}>Close</button>
                     </div>
                 </div>
 
-                <div id="printable-payslip" style={{ padding: '40px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid #f1f5f9' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <img src={manshuLogo} alt="Logo" style={{ height: '60px', width: 'auto' }} />
+                <div id="printable-payslip" style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <img src={manshuLogo} alt="Logo" style={{ height: '36px', width: 'auto' }} />
                             <div>
-                                <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '800', color: '#0f172a' }}>Manshu Learning</h1>
-                                <p style={{ margin: '2px 0 0 0', fontSize: '14px', color: '#64748b' }}>India 500000 India</p>
+                                <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>Manshu Learning</h1>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>India 500000 India</p>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                            <p style={{ margin: 0, fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Payslip For the Month</p>
-                            <p style={{ margin: '4px 0 0 0', fontSize: '22px', fontWeight: '800', color: '#0f172a' }}>{payroll.month}</p>
+                            <p style={{ margin: 0, fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Payslip For the Month</p>
+                            <p style={{ margin: '2px 0 0 0', fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>{payroll.month}</p>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '32px', marginBottom: '32px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
                         <div style={{ flex: '1.2', minWidth: '300px' }}>
-                            <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px' }}>Employee Summary</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: '16px' }}>
-                                <span style={{ fontSize: '14px', color: '#64748b' }}>Employee Name</span>
-                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {user.name}</span>
-                                <span style={{ fontSize: '14px', color: '#64748b' }}>Employee ID</span>
-                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {user.employeeId || '1234'}</span>
-                                <span style={{ fontSize: '14px', color: '#64748b' }}>Pay Period</span>
-                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {payroll.month}</span>
-                                <span style={{ fontSize: '14px', color: '#64748b' }}>Pay Date</span>
-                                <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {new Date(payroll.paymentDate || payroll.createdAt || new Date()).toLocaleDateString('en-GB')}</span>
+                            <h3 style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Employee Summary</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '4px' }}>
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>Employee Name</span>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>: {payroll?.userId?.name || user?.name || 'Unknown'}</span>
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>Employee ID</span>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>: {dynamicEmployeeId || payroll?.userId?.employeeId || user?.employeeId || '1234'}</span>
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>Pay Period</span>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>: {payroll.month}</span>
+                                <span style={{ fontSize: '12px', color: '#64748b' }}>Pay Date</span>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>: {new Date(payroll.paymentDate || payroll.createdAt || new Date()).toLocaleDateString('en-GB')}</span>
                             </div>
                         </div>
 
-                        <div style={{ flex: '0.8', minWidth: '300px', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: '20px', padding: '24px', position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', background: '#22c55e' }}></div>
-                            <span style={{ fontSize: '12px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase' }}>Total Net Pay</span>
-                            <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#166534', margin: '8px 0' }}>{formatCurrency(payroll.netPay)}</h2>
-                            <span style={{ fontSize: '13px', color: '#15803d', opacity: 0.8, fontWeight: '600' }}>Total Net Pay</span>
+                        <div style={{ flex: '0.8', minWidth: '300px', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: '12px', padding: '12px', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: '#22c55e' }}></div>
+                            <span style={{ fontSize: '11px', fontWeight: '700', color: '#15803d', textTransform: 'uppercase' }}>Total Net Pay</span>
+                            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#166534', margin: '2px 0' }}>{formatCurrency(payroll.netPay)}</h2>
+                            <span style={{ fontSize: '11px', color: '#15803d', opacity: 0.8, fontWeight: '600' }}>Total Net Pay</span>
                             
-                            <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px dashed #dcfce7' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                    <span style={{ fontSize: '14px', color: '#64748b' }}>Paid Days</span>
-                                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {paidDays}</span>
+                            <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #dcfce7' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                                    <span style={{ fontSize: '11px', color: '#64748b' }}>Paid Days</span>
+                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#1e293b' }}>: {paidDays}</span>
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                                    <span style={{ fontSize: '14px', color: '#64748b' }}>LOP Days</span>
-                                    <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>: {lopDays}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                                    <span style={{ fontSize: '11px', color: '#64748b' }}>LOP Days</span>
+                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#1e293b' }}>: {lopDays}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', border: '1px solid #f1f5f9', borderRadius: '16px', overflow: 'hidden', marginBottom: '32px' }}>
-                        <div style={{ flex: '1', minWidth: '300px', padding: '24px', borderRight: '1px solid #f1f5f9' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Earnings</span>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Amount</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', border: '1px solid #f1f5f9', borderRadius: '12px', overflow: 'hidden', marginBottom: '12px' }}>
+                        <div style={{ flex: '1', minWidth: '300px', padding: '12px', borderRight: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Earnings</span>
+                                <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Amount</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
                                 <span style={{ color: '#1e293b' }}>Basic</span>
                                 <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.base)}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
-                                <span style={{ color: '#1e293b' }}>House Rent Allowance</span>
-                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(0)}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
+                                <span style={{ color: '#1e293b' }}>Bonus</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.bonus || 0)}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '12px 0', borderTop: '1px solid #f1f5f9', marginTop: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
+                                <span style={{ color: '#1e293b' }}>House Rent Allowance</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.houseRentAllowance || 0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderTop: '1px solid #f1f5f9', marginTop: '4px' }}>
                                 <span style={{ fontWeight: '700', color: '#1e293b' }}>Gross Earnings</span>
-                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{formatCurrency(payroll.base + (payroll.bonus || 0))}</span>
+                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{formatCurrency(payroll.base + (payroll.bonus || 0) + (payroll.houseRentAllowance || 0))}</span>
                             </div>
                         </div>
-                        <div style={{ flex: '1', minWidth: '300px', padding: '24px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Deductions</span>
-                                <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Amount</span>
+                        <div style={{ flex: '1', minWidth: '300px', padding: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Deductions</span>
+                                <span style={{ fontSize: '10px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Amount</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
                                 <span style={{ color: '#1e293b' }}>Income Tax</span>
                                 <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.tax || 0)}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '8px 0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
+                                <span style={{ color: '#1e293b' }}>Loss of Pay (LOP)</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.deductions || 0)}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
                                 <span style={{ color: '#1e293b' }}>Provident Fund</span>
-                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(0)}</span>
+                                <span style={{ fontWeight: '600', color: '#1e293b' }}>{formatCurrency(payroll.providentFund || 0)}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', padding: '12px 0', borderTop: '1px solid #f1f5f9', marginTop: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderTop: '1px solid #f1f5f9', marginTop: '4px' }}>
                                 <span style={{ fontWeight: '700', color: '#1e293b' }}>Total Deductions</span>
-                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{formatCurrency((payroll.tax || 0) + (payroll.deductions || 0))}</span>
+                                <span style={{ fontWeight: '700', color: '#1e293b' }}>{formatCurrency((payroll.tax || 0) + (payroll.deductions || 0) + (payroll.providentFund || 0))}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ background: '#f0fdf4', borderRadius: '12px', padding: '20px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+                    <div style={{ background: '#f0fdf4', borderRadius: '8px', padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <div>
-                            <h4 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>TOTAL NET PAYABLE</h4>
-                            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>Gross Earnings - Total Deductions</p>
+                            <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a', margin: 0 }}>TOTAL NET PAYABLE</h4>
+                            <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>Gross Earnings - Total Deductions</p>
                         </div>
-                        <div style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>{formatCurrency(payroll.netPay)}</div>
+                        <div style={{ fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>{formatCurrency(payroll.netPay)}</div>
                     </div>
 
-                    <div style={{ textAlign: 'right', marginBottom: '30px' }}>
-                        <span style={{ fontSize: '14px', color: '#64748b' }}>Amount In Words : </span>
-                        <span style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>Indian Rupee {numberToWords(payroll.netPay)}</span>
+                    <div style={{ textAlign: 'right', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '11px', color: '#64748b' }}>Amount In Words : </span>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#1e293b' }}>Indian Rupee {numberToWords(payroll.netPay)}</span>
                     </div>
 
-                    <div style={{ fontSize: '12px', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '20px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '10px', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '8px', textAlign: 'center' }}>
                         -- This is a system-generated document. --
                     </div>
                 </div>
@@ -1302,7 +1261,7 @@ const PaySlipModal = ({ payroll, user, onClose }) => {
     );
 };
 
-const PayrollView = ({ payrolls, user }) => {
+const PayrollView = ({ payrolls, user, dynamicEmployeeId }) => {
     const [selectedPayroll, setSelectedPayroll] = useState(null);
 
     return (
@@ -1348,6 +1307,7 @@ const PayrollView = ({ payrolls, user }) => {
                 <PaySlipModal 
                     payroll={selectedPayroll} 
                     user={user} 
+                    dynamicEmployeeId={dynamicEmployeeId}
                     onClose={() => setSelectedPayroll(null)} 
                 />
             )}
@@ -1363,6 +1323,7 @@ const EmployeeDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [viewDate, setViewDate] = useState(new Date());
+    const [dynamicEmployeeId, setDynamicEmployeeId] = useState(null);
 
     // Dynamic Data States
     const [timesheets, setTimesheets] = useState([]);
@@ -1483,7 +1444,7 @@ const EmployeeDashboard = () => {
             case 'leave':
                 return <LeaveView leaves={leaves} fetchDashboardData={fetchDashboardData} />;
             case 'payroll':
-                return <PayrollView payrolls={payrolls} user={user} />;
+                return <PayrollView payrolls={payrolls} user={user} dynamicEmployeeId={dynamicEmployeeId} />;
             case 'holidays':
                 return (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

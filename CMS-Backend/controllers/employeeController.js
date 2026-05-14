@@ -13,7 +13,7 @@ const getEmployees = async (req, res) => {
 // Add new employee
 const addEmployee = async (req, res) => {
     try {
-        const { name, email, password, role, department, position, doj, dob, status, baseSalary } = req.body;
+        const { name, email, password, role, department, position, doj, dob, status, baseSalary, employeeId } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -30,7 +30,8 @@ const addEmployee = async (req, res) => {
             doj,
             dob,
             baseSalary: baseSalary || 0,
-            status: status || 'Active'
+            status: status || 'Active',
+            employeeId
         });
 
         await employee.save();
@@ -43,7 +44,7 @@ const addEmployee = async (req, res) => {
 // Update employee
 const updateEmployee = async (req, res) => {
     try {
-        const { name, email, password, role, department, position, doj, dob, status, baseSalary } = req.body;
+        const { name, email, password, role, department, position, doj, dob, status, baseSalary, employeeId } = req.body;
         const employee = await User.findById(req.params.id);
 
         if (!employee) {
@@ -59,6 +60,7 @@ const updateEmployee = async (req, res) => {
         employee.dob = dob || employee.dob;
         employee.baseSalary = baseSalary !== undefined ? baseSalary : employee.baseSalary;
         employee.status = status || employee.status;
+        employee.employeeId = employeeId !== undefined ? employeeId : employee.employeeId;
 
         if (password && password.trim() !== '') {
             employee.password = password;
