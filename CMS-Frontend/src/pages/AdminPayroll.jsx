@@ -5,6 +5,8 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PaySlipModal from '../components/PaySlipModal';
+import { formatCurrency } from '../utils/formatters';
 
 const AdminPayroll = () => {
     const [payrolls, setPayrolls] = useState([]);
@@ -14,6 +16,7 @@ const AdminPayroll = () => {
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedPayroll, setSelectedPayroll] = useState(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -257,12 +260,8 @@ const AdminPayroll = () => {
         .filter(p => p && p.status === 'Pending')
         .reduce((acc, curr) => acc + (curr.netPay || 0), 0);
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0
-        }).format(amount);
+    const formatCurrencyLocal = (amount) => {
+        return formatCurrency(amount);
     };
 
     const filteredPayrolls = payrolls.filter(p =>
@@ -326,7 +325,7 @@ const AdminPayroll = () => {
                     </div>
                     <div>
                         <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Paid</p>
-                        <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>{formatCurrency(totalPaid)}</h3>
+                        <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>{formatCurrencyLocal(totalPaid)}</h3>
                     </div>
                 </motion.div>
 
@@ -349,7 +348,7 @@ const AdminPayroll = () => {
                     </div>
                     <div>
                         <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: '600', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pending Payroll</p>
-                        <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>{formatCurrency(pendingPayroll)}</h3>
+                        <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>{formatCurrencyLocal(pendingPayroll)}</h3>
                     </div>
                 </motion.div>
             </div>
@@ -456,7 +455,7 @@ const AdminPayroll = () => {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)', borderRadius: '20px', color: 'white', flexWrap: 'wrap', gap: '20px', boxShadow: '0 10px 25px -5px rgba(37, 99, 235, 0.4)' }}>
                                     <div>
                                         <p style={{ fontSize: '12px', fontWeight: '600', opacity: 0.9, margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Net Pay</p>
-                                        <h3 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{formatCurrency(formData.base + formData.bonus + formData.houseRentAllowance - formData.tax - formData.deductions - formData.providentFund)}</h3>
+                                        <h3 style={{ fontSize: '32px', fontWeight: '800', margin: 0 }}>{formatCurrencyLocal(formData.base + formData.bonus + formData.houseRentAllowance - formData.tax - formData.deductions - formData.providentFund)}</h3>
                                     </div>
                                     <div style={{ display: 'flex', gap: '12px' }}>
                                         <button type="button" onClick={() => setIsFormOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', padding: '12px 24px', borderRadius: '12px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
@@ -569,8 +568,16 @@ const AdminPayroll = () => {
                                                 </div>
                                             )}
                                             <button 
+                                                onClick={() => setSelectedPayroll(payroll)}
+                                                style={{ padding: '8px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', border: 'none', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                title="View Payslip"
+                                            >
+                                                <FileText size={16} />
+                                            </button>
+                                            <button 
                                                 onClick={() => handleDelete(payroll._id)}
                                                 style={{ padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                title="Delete Record"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -593,6 +600,14 @@ const AdminPayroll = () => {
                 onConfirm={confirmDialog.onConfirm}
                 onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
             />
+
+            {selectedPayroll && (
+                <PaySlipModal 
+                    payroll={selectedPayroll} 
+                    user={selectedPayroll.userId} 
+                    onClose={() => setSelectedPayroll(null)} 
+                />
+            )}
         </div>
     );
 };

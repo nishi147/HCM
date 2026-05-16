@@ -16,6 +16,7 @@ const Settings = () => {
     
     // System states
     const [templateUrl, setTemplateUrl] = useState('');
+    const [payslipAddress, setPayslipAddress] = useState('');
     
     // Status states
     const [error, setError] = useState('');
@@ -33,6 +34,8 @@ const Settings = () => {
         try {
             const res = await axios.get(`${API_URL}/settings/template_url`);
             setTemplateUrl(res.data.value);
+            const addrRes = await axios.get(`${API_URL}/settings/payslip_address`);
+            setPayslipAddress(addrRes.data.value);
         } catch (err) {
             console.error('Error fetching settings:', err);
         }
@@ -79,10 +82,16 @@ const Settings = () => {
         setSystemLoading(true);
 
         try {
-            await axios.post(`${API_URL}/settings`, 
-                { key: 'template_url', value: templateUrl },
-                { headers: { Authorization: `Bearer ${token}` }}
-            );
+            await Promise.all([
+                axios.post(`${API_URL}/settings`, 
+                    { key: 'template_url', value: templateUrl },
+                    { headers: { Authorization: `Bearer ${token}` }}
+                ),
+                axios.post(`${API_URL}/settings`, 
+                    { key: 'payslip_address', value: payslipAddress },
+                    { headers: { Authorization: `Bearer ${token}` }}
+                )
+            ]);
             setSuccess('System settings updated successfully');
             // Notify sidebar to refresh if possible, but for now, simple reload or state is enough
         } catch (err) {
@@ -161,6 +170,29 @@ const Settings = () => {
                                 />
                             </div>
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>This link will be used when anyone clicks "Templates" in the sidebar.</p>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-main)' }}>Payslip Company Address</label>
+                            <div style={{ position: 'relative' }}>
+                                <SettingsIcon size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                <input
+                                    type="text"
+                                    value={payslipAddress}
+                                    onChange={(e) => setPayslipAddress(e.target.value)}
+                                    placeholder="India 500000 India"
+                                    style={{
+                                        width: '100%',
+                                        padding: '12px 12px 12px 40px',
+                                        borderRadius: '10px',
+                                        border: '1.5px solid var(--border)',
+                                        outline: 'none',
+                                        fontSize: '14px',
+                                        background: 'var(--bg-subtle)'
+                                    }}
+                                />
+                            </div>
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>This address will be displayed on all employee payslips.</p>
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
