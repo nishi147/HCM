@@ -99,10 +99,18 @@ const AdminOverview = ({ setActiveTab }) => {
             }
         });
 
+        const today = new Date();
+        let endLimit = totalDaysInMonth;
+        if (year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth() + 1)) {
+            endLimit = 0;
+        } else if (year === today.getFullYear() && month === today.getMonth() + 1) {
+            endLimit = today.getDate();
+        }
+
         // Calculate present days: Total days in month - (leaves + compOffs)
         Object.keys(summary).forEach(id => {
             const emp = employees.find(e => e._id === id);
-            let baseDays = totalDaysInMonth;
+            let baseDays = endLimit;
             
             if (emp && emp.doj) {
                 const dojDate = new Date(emp.doj);
@@ -112,7 +120,7 @@ const AdminOverview = ({ setActiveTab }) => {
                     baseDays = 0; // Joined after this month
                 } else if (dojDate.getFullYear() === year && dojDate.getMonth() === month - 1) {
                     // Joined in this month
-                    baseDays = endOfMonth.getDate() - dojDate.getDate() + 1;
+                    baseDays = Math.max(0, endLimit - dojDate.getDate() + 1);
                 }
             }
             
