@@ -25,7 +25,7 @@ app.use(cors({
         'http://localhost:5173',
         (process.env.FRONTEND_URL || '').trim(),
         (process.env.FRONTEND_URL_LOCAL || '').trim(),
-        'https://hcm-8e7v.vercel.app'
+        'https://hcm.manshulearning.com'
     ].filter(Boolean),
     credentials: true
 }));
