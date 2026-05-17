@@ -91,32 +91,7 @@ const PaySlipModal = ({ payroll, user: employee, dynamicEmployeeId, onClose }) =
                             <img src={manshuLogo} alt="Logo" style={{ height: '36px', width: 'auto' }} />
                             <div>
                                 <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#0f172a' }}>Manshu Learning</h1>
-                                {isEditingAddress ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                                        <input 
-                                            value={newAddress} 
-                                            onChange={(e) => setNewAddress(e.target.value)}
-                                            style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border)' }}
-                                            placeholder="Enter new address"
-                                        />
-                                        <button onClick={handleSaveAddress} disabled={loading} style={{ background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer' }}><Check size={12} /></button>
-                                        <button onClick={() => setIsEditingAddress(false)} style={{ background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer' }}><X size={12} /></button>
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>{address}</p>
-                                        {currentUser?.role === 'admin' && (
-                                            <button 
-                                                className="no-print"
-                                                onClick={() => { setNewAddress(address); setIsEditingAddress(true); }}
-                                                style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
-                                                title="Edit Address"
-                                            >
-                                                <Edit2 size={12} />
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>{address}</p>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
